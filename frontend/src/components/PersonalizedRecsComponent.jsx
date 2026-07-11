@@ -193,11 +193,11 @@ const BookCover = memo(function BookCover({ coverUrl, title, className, style })
           height: '100%', 
           objectFit: 'cover', 
           opacity: loaded? 1 : 0, 
-          transition: 'opacity.4s cubic-bezier(.4,1,.3,1), transform.35s ease-out' 
+          transition: 'opacity .4s cubic-bezier(.4,1,.3,1)'
         }}
         onLoad={() => setLoaded(true)}
       />
-      {!loaded && <div className="vs-cover-skeleton" />}
+      {!loaded && <div className="vs-skeleton vs-skeleton-cover" style={{ position: 'absolute', inset: 0, margin: 0, height: '100%', borderRadius: 0 }} />}
     </div>
   );
 });
@@ -205,12 +205,14 @@ const BookCover = memo(function BookCover({ coverUrl, title, className, style })
 const SkeletonCard = memo(function SkeletonCard({ index }) {
   return (
     <div className="vs-card vs-skeleton-card vs-fade-in" style={{ "--i": index }}>
-      <div className="vs-skeleton vs-skeleton-cover" />
+      <div className="vs-card-cover-wrap" style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', marginBottom: '12px' }}>
+        <div className="vs-skeleton vs-skeleton-cover" style={{ position: 'absolute', inset: 0, margin: 0, height: '100%', borderRadius: 0 }} />
+      </div>
       <div className="vs-card-body">
-        <div className="vs-skeleton vs-skeleton-line" style={{ width: "85%", height: 18, marginBottom: 8 }} />
-        <div className="vs-skeleton vs-skeleton-line" style={{ width: "65%", height: 14, marginBottom: 12 }} />
-        <div className="vs-skeleton vs-skeleton-line" style={{ width: "40%", height: 14, marginBottom: 12 }} />
-        <div className="vs-skeleton vs-skeleton-block" style={{ height: 40, marginTop: "auto" }} />
+        <div className="vs-skeleton vs-skeleton-line" style={{ width: "85%", height: 22, marginBottom: 8, borderRadius: 4 }} />
+        <div className="vs-skeleton vs-skeleton-line" style={{ width: "65%", height: 16, marginBottom: 16, borderRadius: 4 }} />
+        <div className="vs-skeleton vs-skeleton-block" style={{ width: "100%", height: 60, marginBottom: 12, borderRadius: 8 }} />
+        <div className="vs-skeleton vs-skeleton-block" style={{ height: 40, marginTop: "auto", borderRadius: 8 }} />
       </div>
     </div>
   );
@@ -233,11 +235,12 @@ const BookCard = memo(function BookCard({ book, saved, onSelect, onToggleTbr, in
       aria-pressed="false"
       onKeyDown={e => { if (e.key === "Enter" || e.key === " ") handleSelect(); }}
     >
-      <div className="vs-card-cover-wrap">
+      <div className="vs-card-cover-wrap" style={{ position: 'relative', overflow: 'hidden', borderRadius: '12px', marginBottom: '12px' }}>
         <BookCover 
           coverUrl={book.coverUrl} 
           title={book.title} 
         />
+        <div className="vs-card-cover-overlay" style={{ position: 'absolute', inset: 0, background: 'linear-gradient(to top, rgba(0,0,0,0.6) 0%, transparent 60%)', opacity: 0, transition: 'opacity 0.3s ease' }} />
       </div>
       <div className="vs-card-body">
         <h3 className="vs-card-title" title={book.title}>{book.title}</h3>
@@ -318,8 +321,20 @@ const PersonalizedRecsComponent = () => {
   const [showSaved, setShowSaved] = useState(false);
   const [shareLink, setShareLink] = useState(null);
   const [showProfile, setShowProfile] = useState(false);
-  const [groqSource, setGroqSource] = useState(false);
+  // const [groqSource, setGroqSource] = useState(false);
   const [copyState, setCopyState] = useState("idle");
+
+  const copyShareLink = useCallback(async () => {
+    if (!shareLink) return;
+    try {
+      await navigator.clipboard.writeText(shareLink);
+      setCopyState("copied");
+      setTimeout(() => setCopyState("idle"), 1600);
+    } catch {
+      setCopyState("error");
+      setTimeout(() => setCopyState("idle"), 1600);
+    }
+  }, [shareLink]);
 
   useEffect(() => {
     setTbrList(safeParse(localStorage.getItem(LS_TBR), []));
@@ -392,17 +407,6 @@ const PersonalizedRecsComponent = () => {
     setMood(currentMood + (REFINEMENTS[type] || ""));
   }, [currentMood]);
 
-  const copyShareLink = useCallback(async () => {
-    if (!shareLink) return;
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopyState("copied");
-      setTimeout(() => setCopyState("idle"), 1600);
-    } catch {
-      setCopyState("error");
-      setTimeout(() => setCopyState("idle"), 1600);
-    }
-  }, [shareLink]);
 
   const requestRecs = useCallback(async (query) => {
     const response = await fetch("/api/recommend", {
@@ -431,8 +435,7 @@ const PersonalizedRecsComponent = () => {
     ]);
 
     try {
-      const { books, source } = await requestRecs(query);
-      setGroqSource(source === "groq");
+      const { books } = await requestRecs(query);
 
       const unique = dedupeAgainstSeen(books);
       const formatted = unique.map((b, i) => formatBook(b, `${convId}-${i}`));
@@ -461,8 +464,7 @@ const PersonalizedRecsComponent = () => {
     });
 
     try {
-      const { books, source } = await requestRecs(currentMood);
-      setGroqSource(source === "groq");
+      const { books } = await requestRecs(currentMood);
       const unique = dedupeAgainstSeen(books).slice(0, 4);
 
       const formatted = unique.map((b, i) => formatBook(b, `more-${Date.now()}-${i}`));
@@ -521,11 +523,6 @@ const PersonalizedRecsComponent = () => {
                 VibeShelf
               </h1>
             </div>
-            <div className="vs-header-right">
-              <button type="button" className="vs-icon-btn" onClick={() => setShowProfile(true)} aria-label="View profile and settings">
-                <Icon name="vault" size={18} />
-              </button>
-            </div>
           </header>
 
           <section ref={chatRef} className="vs-chat vs-glass">
@@ -540,7 +537,7 @@ const PersonalizedRecsComponent = () => {
 
                   {conv.isLoading ? (
                     <div className="vs-typing" aria-busy="true">
-                      <span>Finding books for you</span>
+                      <span>Discovering books...</span>
                       <span className="vs-dot" /><span className="vs-dot" /><span className="vs-dot" />
                     </div>
                   ) : conv.books.length > 0 ? null : !conv.isLoading && conv.books.length === 0 ? (
@@ -951,32 +948,33 @@ const StyleSheet = memo(function StyleSheet() {
       .vs-error p { margin: 0; font-size: 14px; }
 
       .vs-grid {
-        display: grid; gap: 22px;
-        grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
-        padding: 6px 0;
+        display: grid; gap: 24px;
+        grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+        padding: 8px 0;
       }
       .vs-card {
         position: relative;
-        background: linear-gradient(165deg, rgba(255,255,255,0.92), rgba(255,247,251,0.85));
-        border: 1px solid rgba(255,255,255,0.95);
-        border-radius: 20px;
-        padding: 16px;
+        background: linear-gradient(165deg, rgba(255,255,255,0.96), rgba(255,247,251,0.9));
+        border: 1px solid rgba(255,255,255,1);
+        border-radius: 24px;
+        padding: 18px;
         display: flex;
         flex-direction: column;
-        box-shadow: 0 12px 30px -12px rgba(199,60,110,0.15);
+        box-shadow: 0 16px 40px -12px rgba(199,60,110,0.15);
         cursor: pointer;
         transition: transform .35s cubic-bezier(.16,1,.3,1), box-shadow .35s, border-color .3s;
         will-change: transform;
         outline: none;
-        min-height: 320px;
+        min-height: 340px;
       }
       .vs-card:hover,
       .vs-card:focus-visible {
-        transform: translateY(-5px) scale(1.02);
-        box-shadow: 0 18px 38px -10px rgba(199,60,110,0.22);
-        border-color: var(--pink-200);
-        outline: 2px solid var(--pink-200);
-        outline-offset: 2px;
+        transform: translateY(-8px) scale(1.02);
+        box-shadow: 0 24px 48px -12px rgba(199,60,110,0.25);
+        border-color: var(--pink-300);
+      }
+      .vs-card:hover .vs-card-cover-overlay {
+        opacity: 1;
       }
       .vs-card-body {
         display: flex;
@@ -988,11 +986,11 @@ const StyleSheet = memo(function StyleSheet() {
       }
       .vs-card-title {
         font-family: var(--serif);
-        font-size: 16.5px;
-        color: var(--pink-700);
-        margin: 0 0 4px;
-        line-height: 1.25;
-        letter-spacing: -0.2px;
+        font-size: 18px;
+        color: var(--pink-800);
+        margin: 0 0 6px;
+        line-height: 1.2;
+        letter-spacing: -0.3px;
         font-weight: 700;
         display: -webkit-box;
         -webkit-line-clamp: 2;
@@ -1001,28 +999,30 @@ const StyleSheet = memo(function StyleSheet() {
         word-break: break-word;
       }
       .vs-card-author {
-        font-size: 13px;
+        font-size: 13.5px;
         color: var(--ink-soft);
-        font-style: normal;
+        font-style: italic;
         font-weight: 500;
         line-height: 1.4;
-        margin-bottom: 10px;
+        margin-bottom: 14px;
+        letter-spacing: 0.1px;
       }
       .vs-card-reason {
         flex: 1;
         margin: 0 0 12px;
-        font-size: 12.5px;
+        font-size: 13px;
         line-height: 1.5;
-        color: var(--ink-soft);
-        background: rgba(255,231,240,0.45);
-        border: 1px solid rgba(255,199,222,0.5);
-        padding: 10px 12px;
+        color: var(--ink);
+        background: rgba(255,240,245,0.7);
+        border: 1px solid rgba(255,220,230,0.8);
+        padding: 12px 14px;
         border-radius: 12px;
         display: -webkit-box;
         -webkit-line-clamp: 4;
         -webkit-box-orient: vertical;
         overflow: hidden;
         min-height: 0;
+        font-style: italic;
       }
       .vs-tbr-btn {
         display: flex;
@@ -1059,9 +1059,9 @@ const StyleSheet = memo(function StyleSheet() {
 
       .vs-skeleton-card { pointer-events: none; }
       .vs-skeleton {
-        background: linear-gradient(90deg, rgba(255,231,240,0.5), rgba(255,255,255,0.7), rgba(255,231,240,0.5));
-        background-size: 200% 100%;
-        animation: skeletonShimmer 1.5s ease-in-out infinite;
+        background: linear-gradient(90deg, rgba(255,231,240,0.4) 25%, rgba(255,255,255,0.8) 50%, rgba(255,231,240,0.4) 75%);
+        background-size: 400% 100%;
+        animation: skeletonShimmer 2s ease-in-out infinite;
         border-radius: 8px;
       }
       .vs-skeleton-cover {
@@ -1070,23 +1070,23 @@ const StyleSheet = memo(function StyleSheet() {
         margin-bottom: 12px;
       }
       @keyframes skeletonShimmer {
-        0% { background-position: 200% 0; }
-        100% { background-position: -200% 0; }
+        0% { background-position: 400% 0; }
+        100% { background-position: 0% 0; }
       }
 
       .vs-more-row { text-align: center; margin-top: 22px; }
       .vs-primary-btn {
         display: inline-flex; align-items: center; gap: 8px;
-        background: linear-gradient(135deg, var(--pink-300), var(--pink-500));
+        background: linear-gradient(135deg, var(--pink-400), var(--pink-600));
         color: #fff; border: none; border-radius: 999px;
-        padding: 12px 26px; font-family: var(--sans); font-size: 14px; font-weight: 700;
-        cursor: pointer; letter-spacing: 0.2px;
-        box-shadow: 0 10px 24px -8px rgba(231,84,128,0.55), inset 0 1px 0 rgba(255,255,255,0.4);
-        transition: transform .2s cubic-bezier(.16,1,.3,1), box-shadow .25s;
+        padding: 14px 32px; font-family: var(--sans); font-size: 15px; font-weight: 700;
+        cursor: pointer; letter-spacing: 0.3px;
+        box-shadow: 0 10px 20px -5px rgba(231,84,128,0.4), inset 0 1px 0 rgba(255,255,255,0.3);
+        transition: all .25s cubic-bezier(.16,1,.3,1);
       }
-      .vs-primary-btn:hover { transform: translateY(-2px); box-shadow: 0 16px 30px -10px rgba(231,84,128,0.65); }
-      .vs-primary-btn:active { transform: translateY(0); }
-      .vs-primary-btn-block { width: 100%; justify-content: center; padding: 14px; }
+      .vs-primary-btn:hover { transform: translateY(-2px) scale(1.02); box-shadow: 0 14px 28px -6px rgba(231,84,128,0.5); }
+      .vs-primary-btn:active { transform: translateY(1px) scale(0.98); }
+      .vs-primary-btn-block { width: 100%; justify-content: center; padding: 16px; font-size: 16px; }
 
       .vs-ghost-btn {
         display: inline-flex; align-items: center; gap: 6px;
@@ -1122,14 +1122,14 @@ const StyleSheet = memo(function StyleSheet() {
       .vs-input::placeholder { color: #d489a4; }
 
       .vs-send-btn {
-        width: 52px; height: 52px; border-radius: 50%;
+        width: 56px; height: 56px; border-radius: 50%;
         display: flex; align-items: center; justify-content: center;
-        background: linear-gradient(135deg, var(--pink-300), var(--pink-500));
+        background: linear-gradient(135deg, var(--pink-400), var(--pink-600));
         color: #fff; border: none; cursor: pointer; flex-shrink: 0;
-        box-shadow: 0 10px 24px -8px rgba(231,84,128,0.55);
-        transition: transform .2s, box-shadow .2s;
+        box-shadow: 0 10px 20px -5px rgba(231,84,128,0.4);
+        transition: all .25s cubic-bezier(.16,1,.3,1);
       }
-      .vs-send-btn:hover:not(:disabled) { transform: translateY(-2px) scale(1.03); }
+      .vs-send-btn:hover:not(:disabled) { transform: translateY(-2px) scale(1.05); box-shadow: 0 14px 28px -6px rgba(231,84,128,0.5); }
       .vs-send-btn:disabled { opacity: 0.55; cursor: not-allowed; }
       .vs-spinner {
         width: 18px; height: 18px; border-radius: 50%;
@@ -1252,7 +1252,7 @@ const StyleSheet = memo(function StyleSheet() {
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .vs-blob, .vs-logo-ring, .vs-title, .vs-cover-skeleton, .vs-skeleton,
+        .vs-blob, .vs-logo-ring, .vs-title, .vs-skeleton,
         .vs-welcome-orb, .vs-fade-in, .vs-modal-pop, .vs-dot, .vs-spinner {
           animation: none !important;
         }

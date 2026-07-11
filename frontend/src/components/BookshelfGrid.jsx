@@ -89,7 +89,7 @@ const OptimizedBookCard = memo(({ book, onSave, onRatingChange }) => {
             e.preventDefault();
             coverRef.current.classList.remove('cover-pop');
             // force reflow to restart animation
-            // eslint-disable-next-line no-unused-expressions
+
             coverRef.current.offsetWidth;
             coverRef.current.classList.add('cover-pop');
             setTimeout(() => navigate(to), 160);

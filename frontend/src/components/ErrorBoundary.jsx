@@ -12,7 +12,7 @@ export default class ErrorBoundary extends React.Component {
 
   componentDidCatch(error, info) {
     // You can log the error to an external service here
-    // eslint-disable-next-line no-console
+
     console.error('Uncaught error in subtree:', error, info);
     this.setState({ info });
   }

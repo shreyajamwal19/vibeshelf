@@ -9,11 +9,10 @@ import {
 import {
   initializeWebLLM,
   generateAIRecommendations,
-  getWebLLMStatus,
   isWebLLMReady,  // NEW: Import the single source of truth!
 } from './WebLLMService.js';
 
-import { initializeSession, getSession, resetSession } from './AISessionContext.js';
+import { initializeSession } from './AISessionContext.js';
 import RAGRetrievalService from './RAGRetrievalService.js';
 
 // Global flag: use Web LLM or fallback?
@@ -237,16 +236,16 @@ export async function askWebLLM({ userQuery, shownBooks = [] } = {}) {
   }
 
   // Check the REAL readiness state from WebLLMService
-  const webLLMReady = isWebLLMReady();
+  const webLLMReadyStatus = isWebLLMReady();
   
   console.log('[BookAIService] askWebLLM with RAG:', { 
     query: userQuery, 
-    webLLMReady,
+    webLLMReadyStatus,
     hasRAG: true,
   });
   
   // Web LLM ONLY - no fallback
-  if (!webLLMReady) {
+  if (!webLLMReadyStatus) {
     console.warn('[BookAIService] Web LLM not ready - cannot use popup AI');
     return {
       final: '🧠 **Smart AI Librarian** is warming up...\n\n✨ Setting up AI models in your browser. This happens once per visit.\n\nPlease try again in a few seconds!',
@@ -258,9 +257,6 @@ export async function askWebLLM({ userQuery, shownBooks = [] } = {}) {
 
   try {
     console.log('[BookAIService] Using Web LLM + RAG for intelligent recommendations');
-    
-    // Get or create session
-    const session = getSession();
     
     // Call updated generateAIRecommendations with RAG pipeline
     // This now uses RAGRetrievalService internally
@@ -308,16 +304,16 @@ export async function askWebLLM({ userQuery, shownBooks = [] } = {}) {
  * Kept for backward compatibility but NOT recommended
  * Use askLocalSearch() or askWebLLM() instead
  */
-export async function askBookAI({ userQuery, booksIndex, shownBooks = [] } = {}) {
+export async function askBookAI({ userQuery, shownBooks = [] } = {}) {
   console.log('[BookAIService] askBookAI (LEGACY):', { 
     query: userQuery, 
     useWebLLM,
-    webLLMReady,
+    isWebLLMReady: isWebLLMReady(),
     librarySize: BOOK_LIBRARY.length
   });
   
   // Try Web LLM first
-  if (useWebLLM && webLLMReady) {
+  if (useWebLLM && isWebLLMReady()) {
     try {
       const aiResult = await generateAIRecommendations(userQuery, shownBooks);
       
