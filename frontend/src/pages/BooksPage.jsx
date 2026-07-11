@@ -23,7 +23,7 @@ export default function BooksPage() {
       const response = await fetchBooks({ page: 3, limit: 20, genre: selectedGenre || undefined });
 
         // Backend returns { data, pagination } — always use response.data as the books array
-        // eslint-disable-next-line no-console
+
         console.log('books:', response.data);
         const booksData = response.data.slice(60);
         if (mounted) setBooks(booksData);

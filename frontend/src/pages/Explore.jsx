@@ -472,12 +472,6 @@ function Explore() {
         return parts.map((p, i) => p.m ? React.createElement('span', { key: i, className: 'font-semibold text-rose-700' }, p.t) : React.createElement('span', { key: i }, p.t));
     }, []);
 
-    const clampIndex = (i) => {
-        const max = Math.max(0, (suggestionItems || []).length - 1);
-        if (i < 0) return -1;
-        if (i > max) return max;
-        return i;
-    };
 
     const startIndex = (page - 1) * pageSize + 1;
     const endIndex = Math.min(page * pageSize, total || 0);

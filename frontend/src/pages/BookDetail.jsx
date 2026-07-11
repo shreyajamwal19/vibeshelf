@@ -283,7 +283,7 @@ function BookDetail() {
         } catch (e) {
           // swallow here and try a search fallback below
           // keep the original error for debugging
-          // eslint-disable-next-line no-console
+
           console.warn('[BookDetail] fetchBookById failed, attempting fallback search', e?.message || e);
         }
 
@@ -297,7 +297,7 @@ function BookDetail() {
             else if (fallback && typeof fallback === 'object') data = fallback;
           } catch (e) {
             // final fallback ignored — we'll let the outer catch handle it
-            // eslint-disable-next-line no-console
+
             console.warn('[BookDetail] fallback search failed', e?.message || e);
           }
         }

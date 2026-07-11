@@ -65,7 +65,7 @@ export const AuthProvider = ({ children }) => {
       setAuthToken(token);
     } catch (e) {
       // don't block UI if header setup fails
-      // eslint-disable-next-line no-console
+
       console.warn('Failed to set auth token on API client', e);
     }
   }, [token]);
