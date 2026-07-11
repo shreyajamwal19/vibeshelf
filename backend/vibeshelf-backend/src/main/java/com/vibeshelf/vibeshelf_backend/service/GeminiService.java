@@ -145,7 +145,7 @@ public class GeminiService {
                 String title = e.getKey();
                 if (seen.contains(title)) continue;
                 if (shownBooks.get(sessionId).contains(title)) continue;
-                BookRecommendation br = new BookRecommendation(capitalizeTitle(title), e.getValue(), "A very popular BookTok pick that fits this vibe.", null, null);
+                BookRecommendation br = new BookRecommendation(capitalizeTitle(title), e.getValue(), "A very popular BookTok pick that fits this vibe.", "", "");
                 score.put(br, 0.5);
                 seen.add(title);
             }
@@ -320,7 +320,7 @@ public class GeminiService {
                             author = author.replaceAll("\\s*\\(.*?\\)","").trim();
                             String k = title.toLowerCase(); if (seen.contains(k)) continue; seen.add(k);
                             if (reason.toLowerCase().matches(".*(hits different|pure vibes|mood match|right here|giving exactly|speaks to|total mood|new obsession|perfect vibe|trust me).*")) reason = "A popular BookTok pick that fits this vibe.";
-                            out.add(new BookRecommendation(title, author, reason, null, null));
+                            out.add(new BookRecommendation(title, author, reason, "", ""));
                         }
                         if (!out.isEmpty()) return out;
                     }

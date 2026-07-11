@@ -43,3 +43,4 @@ dist
 *.njsproj
 *.sln
 *.sw?
+**/application-local.properties

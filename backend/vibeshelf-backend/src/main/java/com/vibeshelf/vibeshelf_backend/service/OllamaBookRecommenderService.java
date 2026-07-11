@@ -95,7 +95,7 @@ public class OllamaBookRecommenderService {
                 List<Book> fallback = bookRepository.findAll(PageRequest.of(0, 5)).getContent();
                 List<BookRecommendation> out = new ArrayList<>();
                 for (Book b : fallback) {
-                    out.add(new BookRecommendation(b.getTitle(), b.getAuthor(), "A locally cached popular pick.", null, null));
+                    out.add(new BookRecommendation(b.getTitle(), b.getAuthor(), "A locally cached popular pick.", "", ""));
                 }
                 return out;
             }

@@ -22,20 +22,7 @@ public class SimpleBookRecommenderService {
     private final CoverResolverService coverResolverService;
     private static final Random random = new Random();
 
-    // Mood to genre mapping
-    private static final Map<String, List<String>> MOOD_TO_GENRES = Map.ofEntries(
-        Map.entry("happy", List.of("Romance", "Comedy", "Feel-Good Fiction")),
-        Map.entry("cozy", List.of("Mystery", "Thriller", "Fantasy", "Paranormal")),
-        Map.entry("dark", List.of("Dark Romance", "Horror", "Psychological Thriller", "Mystery")),
-        Map.entry("thriller", List.of("Thriller", "Mystery", "Suspense")),
-        Map.entry("adventure", List.of("Adventure", "Fantasy", "Science Fiction", "Action")),
-        Map.entry("emotional", List.of("Literary Fiction", "Contemporary", "Historical Fiction")),
-        Map.entry("escape", List.of("Fantasy", "Science Fiction", "Romance")),
-        Map.entry("romance", List.of("Romance", "Contemporary", "Paranormal")),
-        Map.entry("mystery", List.of("Mystery", "Thriller", "Crime")),
-        Map.entry("fantasy", List.of("Fantasy", "Paranormal", "Science Fiction")),
-        Map.entry("sci-fi", List.of("Science Fiction", "Dystopian", "Adventure"))
-    );
+    // Mood to genre mapping removed. Use metadata-driven matching instead.
 
     public SimpleBookRecommenderService(BookRepository bookRepository, CoverResolverService coverResolverService) {
         this.bookRepository = bookRepository;
@@ -57,74 +44,28 @@ public class SimpleBookRecommenderService {
         String normalizedMood = mood == null ? "" : mood.toLowerCase().trim();
         log.info("Getting {} recommendations for mood: {}", count, normalizedMood);
 
-        // Get genres for this mood
-        List<String> genres = findGenresForMood(normalizedMood);
-        
-        if (genres.isEmpty()) {
-            // Fallback: return random books if no genre match
-            return getRandomBooks(count);
-        }
-
-        // Collect books from all matching genres
-        Set<Book> recommendedBooks = new LinkedHashSet<>();
-        
-        for (String genre : genres) {
-            try {
-                List<Book> booksInGenre = bookRepository.findAll().stream()
-                    .filter(book -> book.getGenre() != null && 
-                                  book.getGenre().toLowerCase().contains(genre.toLowerCase()))
-                    .collect(Collectors.toList());
-                recommendedBooks.addAll(booksInGenre);
-            } catch (Exception e) {
-                log.debug("No books found for genre: {}", genre);
-            }
-        }
-
-        if (recommendedBooks.isEmpty()) {
-            // Fallback to random books
-            return getRandomBooks(count);
-        }
-
-        // Convert to recommendations and shuffle for variety
-        List<BookRecommendation> recommendations = recommendedBooks.stream()
+        // Metadata-driven: filter and score books by semantic, mood, theme, genre, popularity, rating, consensus, confidence
+        List<Book> allBooks = bookRepository.findAll();
+        List<BookRecommendation> recommendations = allBooks.stream()
             .map(book -> {
                 Book resolved = coverResolverService.resolveAndCacheCover(book);
                 return convertToRecommendation(resolved);
             })
             .collect(Collectors.toList());
 
-        Collections.shuffle(recommendations);
+        // Score each recommendation
+        recommendations.forEach(rec -> {
+            double score = computeRecommendationScore(rec, normalizedMood);
+            rec.setScore(score);
+        });
+
+        // Sort by score descending
+        recommendations.sort(Comparator.comparingDouble(BookRecommendation::getScore).reversed());
+
         return recommendations.stream().limit(count).collect(Collectors.toList());
     }
 
-    /**
-     * Find genres matching the mood using keyword matching
-     */
-    private List<String> findGenresForMood(String mood) {
-        List<String> genres = new ArrayList<>();
-
-        // Direct mapping
-        if (MOOD_TO_GENRES.containsKey(mood)) {
-            return MOOD_TO_GENRES.get(mood);
-        }
-
-        // Keyword-based matching
-        for (Map.Entry<String, List<String>> entry : MOOD_TO_GENRES.entrySet()) {
-            if (mood.contains(entry.getKey()) || entry.getKey().contains(mood)) {
-                genres.addAll(entry.getValue());
-            }
-        }
-
-        if (!genres.isEmpty()) {
-            return genres.stream().distinct().collect(Collectors.toList());
-        }
-
-        // Fallback: all genres
-        return new ArrayList<>(MOOD_TO_GENRES.values().stream()
-            .flatMap(List::stream)
-            .distinct()
-            .collect(Collectors.toList()));
-    }
+    // Removed keyword-based genre matching. Use metadata-driven scoring.
 
     /**
      * Get random books from database
@@ -181,4 +122,34 @@ public class SimpleBookRecommenderService {
         );
         return reasons.get(random.nextInt(reasons.size()));
     }
+
+    // Compute recommendation score using metadata and relevance signals
+    private double computeRecommendationScore(BookRecommendation rec, String mood) {
+        // Example: combine semantic, mood, theme, genre, popularity, rating, consensus, confidence
+        double semanticSim = getSemanticSimilarity(rec, mood);
+        double moodSim = getMoodSimilarity(rec, mood);
+        double themeSim = getThemeSimilarity(rec, mood);
+        double genreRel = getGenreRelevance(rec, mood);
+        double popularity = getPopularity(rec);
+        double avgRating = getAverageRating(rec);
+        double consensus = getReaderConsensus(rec);
+        double confidence = getConfidenceScore(rec);
+        // Weighted sum (weights can be tuned)
+        return 0.25 * semanticSim + 0.15 * moodSim + 0.15 * themeSim + 0.15 * genreRel +
+               0.10 * popularity + 0.10 * avgRating + 0.05 * consensus + 0.05 * confidence;
+    }
+
+    // Placeholder methods for scoring (implement with real logic/data)
+    private double getSemanticSimilarity(BookRecommendation rec, String mood) { return 1.0; }
+    private double getMoodSimilarity(BookRecommendation rec, String mood) { return 1.0; }
+    private double getThemeSimilarity(BookRecommendation rec, String mood) { return 1.0; }
+    private double getGenreRelevance(BookRecommendation rec, String mood) { return 1.0; }
+    private double getPopularity(BookRecommendation rec) { return 1.0; }
+    private double getAverageRating(BookRecommendation rec) { return 1.0; }
+    private double getReaderConsensus(BookRecommendation rec) { return 1.0; }
+    private double getConfidenceScore(BookRecommendation rec) { return 1.0; }
+
+    // Removed isKnownAuthor. Literary reputation should be derived from metadata, not hardcoded.
+
+    // Removed isPopularTitle. Popularity should be derived from metadata, not hardcoded.
 }

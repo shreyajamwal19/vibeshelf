@@ -147,11 +147,16 @@ const AppNavbar = () => {
 
 function AppLayout() {
   const { books } = useBooksData();
+  const location = useLocation();
+  
+  // Check if we are on the home page
+  const isHome = location.pathname === "/";
   
   return (
     <>
       <AppNavbar />
-      <main className="flex-grow overflow-y-auto p-8 transition-colors">
+      {/* Conditionally apply p-8 only if we are NOT on the home page */}
+      <main className={`flex-grow overflow-y-auto transition-colors ${isHome ? '' : 'p-8'}`}>
         <Outlet />
       </main>
       {/* footer removed per design request */}

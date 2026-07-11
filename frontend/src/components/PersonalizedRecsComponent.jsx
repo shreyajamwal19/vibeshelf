@@ -12,14 +12,14 @@ import React, {
   memo,
 } from "react";
 import { useBooksData } from "../contexts/BooksDataContext";
-import UserProfileComponent from "./UserProfileComponent";
+import heroBooks from "../assets/book1.svg";
+import heroBackground from "../assets/book2.svg";
 
 /* ============================================================================
  * 1. CONSTANTS & ICONS
  * ==========================================================================*/
 
 const LS_TBR = "vibeshelf_tbr";
-const LS_CONV = "vibeshelf_conversations";
 
 const REFINEMENTS = {
   darker: " but darker and more intense",
@@ -29,6 +29,17 @@ const REFINEMENTS = {
   fastpaced: " fast-paced and gripping",
   slowburn: " slow-burn and atmospheric",
 };
+
+const HERO_SUGGESTIONS = [
+  "Cozy fantasy",
+  "Books like Harry Potter",
+  "Dark academia",
+  "Found family",
+  "Slow romance",
+  "Bittersweet endings",
+  "Literary fiction",
+  "Magical realism",
+];
 
 const Icon = memo(function Icon({ name, size = 20, stroke = 2, fill = "none", className, style }) {
   const common = {
@@ -51,30 +62,6 @@ const Icon = memo(function Icon({ name, size = 20, stroke = 2, fill = "none", cl
           <polygon points="22 2 15 22 11 13 2 9 22 2" />
         </svg>
       );
-    case "save":
-      return (
-        <svg {...common}>
-          <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
-          <polyline points="17 21 17 13 7 13 7 21" />
-          <polyline points="7 3 7 8 15 8" />
-        </svg>
-      );
-    case "folder":
-      return <svg {...common}><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" /></svg>;
-    case "link":
-      return (
-        <svg {...common}>
-          <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
-          <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
-        </svg>
-      );
-    case "trash":
-      return (
-        <svg {...common}>
-          <polyline points="3 6 5 6 21 6" />
-          <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-        </svg>
-      );
     case "book":
       return <svg {...common}><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" /></svg>;
     case "heart":
@@ -93,6 +80,16 @@ const Icon = memo(function Icon({ name, size = 20, stroke = 2, fill = "none", cl
       return <svg {...common}><polyline points="23 4 23 10 17 10" /><path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10" /></svg>;
     case "vault":
       return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="12" cy="12" r="3.5" /><path d="M12 8.5V6M12 18v-2.5M8.5 12H6M18 12h-2.5" /></svg>;
+    case "flower":
+      return (
+        <svg {...common} fill="currentColor" stroke="none">
+          <circle cx="12" cy="12" r="2.1" />
+          <ellipse cx="12" cy="6.2" rx="2" ry="3.2" />
+          <ellipse cx="12" cy="17.8" rx="2" ry="3.2" />
+          <ellipse cx="6.2" cy="12" rx="3.2" ry="2" />
+          <ellipse cx="17.8" cy="12" rx="3.2" ry="2" />
+        </svg>
+      );
     default:
       return null;
   }
@@ -133,7 +130,7 @@ const formatBook = (raw, id) => ({
   reason:
     raw.reason && raw.reason.trim().length > 10
       ? raw.reason.trim()
-      : "", // Remove generic fallback copy
+      : "",
   coverUrl: raw.coverUrl || raw.cover || null,
 });
 
@@ -141,23 +138,81 @@ const formatBook = (raw, id) => ({
  * 5. SUB-COMPONENTS
  * ==========================================================================*/
 
-const EmptyState = memo(function EmptyState({ onReset }) {
+const EmptyState = memo(function EmptyState({ onReset, mood, onSuggestion }) {
+  // Scrapbook details: washi tape and pressed flower SVGs
+  const WashiTape = () => (
+    <svg width="74" height="22" style={{ position: 'absolute', top: -14, left: 24, zIndex: 2, pointerEvents: 'none', transform: 'rotate(-4deg)' }} aria-hidden="true">
+      <rect x="0" y="0" width="74" height="22" rx="6" fill="#ffe4ef" stroke="#ffc7de" strokeDasharray="6 3" strokeWidth="1.5"/>
+      <rect x="0" y="0" width="74" height="22" rx="6" fill="url(#washiPattern)" opacity="0.18"/>
+      <defs>
+        <pattern id="washiPattern" width="8" height="8" patternUnits="userSpaceOnUse">
+          <circle cx="4" cy="4" r="1.5" fill="#e75480" />
+        </pattern>
+      </defs>
+    </svg>
+  );
+  const PressedFlower = () => (
+    <svg width="32" height="32" style={{ position: 'absolute', bottom: 8, right: 14, zIndex: 2, pointerEvents: 'none', transform: 'rotate(7deg)' }} aria-hidden="true">
+      <g opacity="0.7">
+        <circle cx="16" cy="16" r="7" fill="#ffc7de" />
+        <ellipse cx="16" cy="10" rx="3" ry="6" fill="#e75480" opacity="0.18" />
+        <ellipse cx="10" cy="18" rx="2" ry="4" fill="#e75480" opacity="0.18" />
+        <ellipse cx="22" cy="20" rx="2" ry="4" fill="#e75480" opacity="0.18" />
+      </g>
+    </svg>
+  );
   return (
-    <div className="vs-empty-state vs-fade-in" role="status" aria-live="polite">
-      <img 
-        src="https://i.pinimg.com/originals/1e/9a/43/1e9a433cd24aff0bb9c533414a5b1633.jpg" 
-        alt="A cozy reading nook with a stack of books and a cup of tea"
-        className="vs-empty-img"
-        style={{opacity: 0.92, filter: 'grayscale(0.08)'}}
-      />
-      <h2 className="vs-empty-title">
-        No recommendations yet
-      </h2>
-      <p className="vs-empty-text">
-        Begin your search by sharing a mood, genre, or book you adore.
-      </p>
-      <button className="vs-primary-btn" onClick={onReset} tabIndex={0}>
-        Initiate a new search
+    <div className="vs-hero vs-fade-in" role="status" aria-live="polite">
+      <div className="vs-hero-card vs-hero-card-premium">
+        <div className="vs-hero-left">
+          <span className="vs-hero-eyebrow">made for you ♡</span>
+          <h2 className="vs-hero-title">Find your next favorite story.</h2>
+          <p className="vs-hero-sub">
+            Tell us a mood, a genre, or a book you couldn't stop thinking about.<br/>
+            We'll recommend stories that feel like magic, just for you.
+          </p>
+          <button className="vs-hero-cta vs-hero-cta-premium" onClick={onReset} tabIndex={0}>
+            Start discovering <Icon name="sparkle" size={15} />
+          </button>
+          <div className="vs-hero-pills vs-hero-pills-premium">
+            {HERO_SUGGESTIONS.map((s, i) => (
+              <button
+                key={s}
+                type="button"
+                className="vs-hero-pill vs-hero-pill-premium"
+                style={{
+                  transform: i % 2 === 0 ? 'rotate(-2.5deg)' : 'rotate(1.5deg)',
+                  marginTop: i % 3 === 0 ? 2 : 0,
+                  marginBottom: i % 4 === 0 ? 2 : 0,
+                  zIndex: 1
+                }}
+                onClick={() => onSuggestion(s)}
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        </div>
+        <div className="vs-hero-right">
+          <div className="vs-hero-polaroid vs-hero-polaroid-premium">
+            <WashiTape />
+            <img src={heroBooks} alt="A curated stack of books" style={{ borderRadius: 10, boxShadow: '0 2px 16px 0 rgba(231,84,128,0.10)' }} />
+            <div className="vs-hero-quote vs-hero-quote-premium">books are a uniquely portable magic ✨</div>
+            <PressedFlower />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+});
+
+const NoResultsState = memo(function NoResultsState({ onReset }) {
+  return (
+    <div className="vs-noresults vs-fade-in" role="status" aria-live="polite">
+      <p className="vs-noresults-title">No matches for that one</p>
+      <p className="vs-noresults-text">Try describing the mood or vibe a little differently.</p>
+      <button className="vs-ghost-btn" onClick={onReset} tabIndex={0}>
+        <Icon name="refresh" size={14} /> New search
       </button>
     </div>
   );
@@ -167,8 +222,8 @@ const BookCover = memo(function BookCover({ coverUrl, title, className, style })
   const [loaded, setLoaded] = useState(false);
   const src = coverUrl && /^https?:/.test(coverUrl)
    ? coverUrl
-    : "data:image/svg+xml;utf8," +
-      encodeURIComponent(`
+   : "data:image/svg+xml;utf8," +
+     encodeURIComponent(`
         <svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 128 192'>
           <defs>
             <linearGradient id='g' x1='0' y1='0' x2='1' y2='1'>
@@ -295,427 +350,13 @@ const Modal = memo(function Modal({ open, onClose, children, width = 460 }) {
 });
 
 /* ============================================================================
- * 6. MAIN COMPONENT
+ * STYLESHEET (moved before main component to avoid TDZ)
  * ==========================================================================*/
-
-const PersonalizedRecsComponent = () => {
-  useBooksData();
-
-  const chatRef = useRef(null);
-  const sessionIdRef = useRef(
-    typeof crypto !== "undefined" && crypto.randomUUID
-      ? crypto.randomUUID()
-      : String(Date.now())
-  );
-
-  const [mood, setMood] = useState("");
-  const [currentMood, setCurrentMood] = useState("");
-  const [conversations, setConversations] = useState([]);
-  const [savedConversations, setSavedConversations] = useState([]);
-  const [tbrList, setTbrList] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [selectedBook, setSelectedBook] = useState(null);
-  const [showSaved, setShowSaved] = useState(false);
-  const [shareLink, setShareLink] = useState(null);
-  const [showProfile, setShowProfile] = useState(false);
-  const [groqSource, setGroqSource] = useState(false);
-  const [copyState, setCopyState] = useState("idle");
-
-  useEffect(() => {
-    setTbrList(safeParse(localStorage.getItem(LS_TBR), []));
-    setSavedConversations(safeParse(localStorage.getItem(LS_CONV), []));
-  }, []);
-
-  useEffect(() => {
-    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
-  }, [conversations]);
-
-  const tbrTitleSet = useMemo(
-    () => new Set(tbrList.map((b) => b.title?.toLowerCase())),
-    [tbrList]
-  );
-  const isInTbr = useCallback(
-    (book) => tbrTitleSet.has(book?.title?.toLowerCase()),
-    [tbrTitleSet]
-  );
-
-  const toggleTbr = useCallback((book) => {
-    setTbrList((prev) => {
-      const exists = prev.some((b) => b.title === book.title);
-      const next = exists
-        ? prev.filter((b) => b.title !== book.title)
-        : [...prev, book];
-      localStorage.setItem(LS_TBR, JSON.stringify(next));
-      return next;
-    });
-  }, []);
-
-  const shareConversation = useCallback(() => {
-    if (conversations.length === 0) return;
-    try {
-      const encoded = btoa(unescape(encodeURIComponent(JSON.stringify(conversations))));
-      setShareLink(`${window.location.origin}?shared=${encoded}`);
-    } catch { /* noop */ }
-  }, [conversations]);
-
-  const saveConversation = useCallback(() => {
-    if (conversations.length === 0) return;
-    setSavedConversations((prev) => {
-      const next = [
-        { id: Date.now(), conversations, savedAt: new Date().toLocaleString() },
-        ...prev.slice(0, 9),
-      ];
-      localStorage.setItem(LS_CONV, JSON.stringify(next));
-      return next;
-    });
-  }, [conversations]);
-
-  const loadSavedConversation = useCallback((saved) => {
-    setConversations(saved.conversations);
-    setShowSaved(false);
-  }, []);
-
-  const clearAll = useCallback(() => {
-    setConversations([]);
-    setCurrentMood("");
-    setMood("");
-    seenTitles.clear();
-  }, []);
-
-  const handleEmptyReset = useCallback(() => {
-    clearAll();
-    const input = document.querySelector('.vs-input');
-    if (input) input.focus();
-  }, [clearAll]);
-
-  const refine = useCallback((type) => {
-    setMood(currentMood + (REFINEMENTS[type] || ""));
-  }, [currentMood]);
-
-  const copyShareLink = useCallback(async () => {
-    if (!shareLink) return;
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopyState("copied");
-      setTimeout(() => setCopyState("idle"), 1600);
-    } catch {
-      setCopyState("error");
-      setTimeout(() => setCopyState("idle"), 1600);
-    }
-  }, [shareLink]);
-
-  const requestRecs = useCallback(async (query) => {
-    const response = await fetch("/api/recommend", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ mood: query, sessionId: sessionIdRef.current }),
-    });
-    if (!response.ok) throw new Error("Backend connection failed.");
-    const data = await response.json();
-    return extractBooks(data);
-  }, []);
-
-  const submitMood = useCallback(async (e) => {
-    e?.preventDefault?.();
-    const query = mood.trim();
-    if (!query || loading) return;
-
-    setCurrentMood(query);
-    setMood("");
-    setLoading(true);
-
-    const convId = `c-${Date.now()}`;
-    setConversations((prev) => [
-      ...prev,
-      { id: convId, query, books: [], timestamp: new Date(), isLoading: true, error: null },
-    ]);
-
-    try {
-      const { books, source } = await requestRecs(query);
-      setGroqSource(source === "groq");
-
-      const unique = dedupeAgainstSeen(books);
-      const formatted = unique.map((b, i) => formatBook(b, `${convId}-${i}`));
-
-      setConversations((prev) => prev.map((c) =>
-        c.id === convId ? { ...c, books: formatted, isLoading: false } : c
-      ));
-    } catch (err) {
-      setConversations((prev) => prev.map((c) =>
-        c.id === convId ? { ...c, isLoading: false, error: err.message || "Network error. Is the backend running?" } : c
-      ));
-    } finally {
-      setLoading(false);
-    }
-  }, [mood, loading, requestRecs]);
-
-  const loadMore = useCallback(async () => {
-    if (!currentMood || loading) return;
-    setLoading(true);
-
-    setConversations((prev) => {
-      if (prev.length === 0) return prev;
-      const next = prev.slice();
-      next[next.length - 1] = { ...next[next.length - 1], isLoadingMore: true };
-      return next;
-    });
-
-    try {
-      const { books, source } = await requestRecs(currentMood);
-      setGroqSource(source === "groq");
-      const unique = dedupeAgainstSeen(books).slice(0, 4);
-
-      const formatted = unique.map((b, i) => formatBook(b, `more-${Date.now()}-${i}`));
-
-      setConversations((prev) => {
-        const next = prev.slice();
-        const last = { ...next[next.length - 1] };
-        last.books = [...last.books, ...formatted];
-        last.isLoadingMore = false;
-        next[next.length - 1] = last;
-        return next;
-      });
-    } catch {
-      setConversations((prev) => {
-        const next = prev.slice();
-        next[next.length - 1] = { ...next[next.length - 1], isLoadingMore: false };
-        return next;
-      });
-    } finally {
-      setLoading(false);
-    }
-  }, [currentMood, loading, requestRecs]);
-
-  const retryLast = useCallback(() => {
-    const last = conversations[conversations.length - 1];
-    if (!last?.error) return;
-    setConversations((prev) => prev.slice(0, -1));
-    setMood(last.query);
-    setTimeout(() => {
-      const form = document.getElementById("vs-mood-form");
-      form?.requestSubmit?.();
-    }, 0);
-  }, [conversations]);
-
-  const refineButtons = useMemo(() => ([
-    { key: "darker", label: "Darker", icon: "moon" },
-    { key: "lighter", label: "Lighter", icon: "sun" },
-    { key: "fastpaced", label: "Fast-Paced", icon: "zap" },
-    { key: "slowburn", label: "Slow Burn", icon: "fire" },
-  ]), []);
-
-  return (
-    <div className="vs-root">
-      <StyleSheet />
-
-      {/* Remove excessive decorative blobs for less visual noise */}
-      <div className="vs-aurora" aria-hidden="true">
-        <div className="vs-grain" />
-      </div>
-
-      <div className="vs-shell">
-        <main className="vs-main" style={{ maxWidth: tbrList.length > 0 ? 820 : 940 }}>
-          <header className="vs-header vs-glass">
-            <div className="vs-header-left" style={{gap: 12}}>
-              <h1 className="vs-title">
-                VibeShelf
-              </h1>
-            </div>
-            <div className="vs-header-right">
-              <button type="button" className="vs-icon-btn" onClick={() => setShowProfile(true)} aria-label="View profile and settings">
-                <Icon name="vault" size={18} />
-              </button>
-            </div>
-          </header>
-
-          <section ref={chatRef} className="vs-chat vs-glass">
-            {conversations.length === 0 ? (
-              <EmptyState onReset={handleEmptyReset} />
-            ) : (
-              conversations.map((conv, convIdx) => (
-                <div key={conv.id} className="vs-conv vs-fade-in">
-                  <div className="vs-user-row">
-                    <div className="vs-user-bubble">{conv.query}</div>
-                  </div>
-
-                  {conv.isLoading ? (
-                    <div className="vs-typing" aria-busy="true">
-                      <span>Finding books for you</span>
-                      <span className="vs-dot" /><span className="vs-dot" /><span className="vs-dot" />
-                    </div>
-                  ) : conv.books.length > 0 ? null : !conv.isLoading && conv.books.length === 0 ? (
-                     <EmptyState onReset={handleEmptyReset} />
-                  ) : null}
-
-                  {conv.error && (
-                    <div className="vs-error" role="alert">
-                      <p>{conv.error}</p>
-                      <button type="button" className="vs-ghost-btn" onClick={retryLast}>
-                        <Icon name="refresh" size={14} /> Try again
-                      </button>
-                    </div>
-                  )}
-
-                  <div className="vs-grid">
-                    {conv.books.map((book, bidx) => (
-                      <BookCard
-                        key={book.id}
-                        book={book}
-                        saved={isInTbr(book)}
-                        onSelect={setSelectedBook}
-                        onToggleTbr={toggleTbr}
-                        index={bidx}
-                      />
-                    ))}
-                    {(conv.isLoading || conv.isLoadingMore) &&
-                      Array.from({ length: 4 }).map((_, i) => (
-                        <SkeletonCard key={`sk-${conv.id}-${i}`} index={conv.books.length + i} />
-                      ))}
-                  </div>
-
-                  {convIdx === conversations.length - 1 &&
-                    !loading &&
-                    conv.books.length > 0 && (
-                      <div className="vs-more-row">
-                        <button className="vs-primary-btn" onClick={loadMore}>
-                          Show more books
-                        </button>
-                      </div>
-                    )}
-                </div>
-              ))
-            )}
-          </section>
-
-          <div className="vs-input-area">
-            {conversations.length > 0 && !loading && currentMood && (
-              <div className="vs-refine-row">
-                {refineButtons.map((r) => (
-                  <button key={r.key} type="button" className="vs-refine-chip" onClick={() => refine(r.key)}>
-                    <Icon name={r.icon} size={13} /> {r.label}
-                  </button>
-                ))}
-              </div>
-            )}
-
-            <form id="vs-mood-form" onSubmit={submitMood} className="vs-form" autoComplete="off">
-              <input
-                className="vs-input"
-                type="text"
-                value={mood}
-                onChange={(e) => setMood(e.target.value)}
-                placeholder="Tell me what you're looking for..."
-                disabled={loading}
-                aria-label="Search for books by mood, title, or author"
-                autoFocus
-              />
-              <button
-                type="submit"
-                className="vs-send-btn"
-                disabled={loading || !mood.trim()}
-                aria-label="Get recommendations"
-              >
-                {loading ? <span className="vs-spinner" /> : <Icon name="send" size={18} />}
-              </button>
-              {conversations.length > 0 && (
-                <div className="vs-toolbar vs-glass">
-                  <button type="button" className="vs-icon-btn" onClick={saveConversation} aria-label="Save this conversation"><Icon name="save" size={16} /></button>
-                  {savedConversations.length > 0 && (
-                    <button type="button" className="vs-icon-btn" onClick={() => setShowSaved(true)} aria-label="View saved conversations"><Icon name="folder" size={16} /></button>
-                  )}
-                  <button type="button" className="vs-icon-btn" onClick={shareConversation} aria-label="Share this conversation"><Icon name="link" size={16} /></button>
-                  <button type="button" className="vs-icon-btn vs-icon-btn-danger" onClick={clearAll} aria-label="Clear all conversations"><Icon name="trash" size={16} /></button>
-                </div>
-              )}
-            </form>
-          </div>
-        </main>
-
-        {tbrList.length > 0 && (
-          <aside className="vs-sidebar vs-glass vs-fade-in" role="complementary" aria-label="Your reading list">
-            <div className="vs-sidebar-header">
-              <h2><Icon name="vault" size={18} /> Your List</h2>
-              <p>{tbrList.length} {tbrList.length === 1 ? "book" : "books"} saved</p>
-            </div>
-            <div className="vs-sidebar-body">
-              {tbrList.map((book) => (
-                <TbrItem key={book.title} book={book} onRemove={toggleTbr} />
-              ))}
-            </div>
-          </aside>
-        )}
-      </div>
-
-      <Modal open={showSaved && savedConversations.length > 0} onClose={() => setShowSaved(false)}>
-        <div className="vs-modal-header">
-          <h2><Icon name="folder" size={18} /> Saved Conversations</h2>
-          <button className="vs-icon-btn" onClick={() => setShowSaved(false)} aria-label="Close saved conversations"><Icon name="close" size={16} /></button>
-        </div>
-        <div className="vs-modal-body">
-          {savedConversations.map((saved) => (
-            <button key={saved.id} className="vs-saved-item" onClick={() => loadSavedConversation(saved)}>
-              <div className="vs-saved-title">"{saved.conversations[0]?.query}"</div>
-              <div className="vs-saved-time">{saved.savedAt}</div>
-            </button>
-          ))}
-        </div>
-      </Modal>
-
-      <Modal open={!!selectedBook} onClose={() => setSelectedBook(null)}>
-        {selectedBook && (
-          <>
-            <div className="vs-modal-header">
-              <h2 className="vs-modal-title" title={selectedBook.title}>{selectedBook.title}</h2>
-              <button className="vs-icon-btn" onClick={() => setSelectedBook(null)} aria-label="Close book details"><Icon name="close" size={16} /></button>
-            </div>
-            <BookCover
-              coverUrl={selectedBook.coverUrl}
-              title={selectedBook.title}
-              className="vs-modal-cover"
-            />
-            <p className="vs-modal-author">by {selectedBook.author}</p>
-            {selectedBook.reason && <div className="vs-modal-reason">{selectedBook.reason}</div>}
-            <button
-              className="vs-primary-btn vs-primary-btn-block"
-              onClick={() => toggleTbr(selectedBook)}
-              aria-label={isInTbr(selectedBook) ? `Remove ${selectedBook.title} from your list` : `Add ${selectedBook.title} to your list`}
-            >
-              {isInTbr(selectedBook) ? "In your list" : "Save to list"}
-            </button>
-          </>
-        )}
-      </Modal>
-
-      <Modal open={!!shareLink} onClose={() => setShareLink(null)}>
-        <div className="vs-modal-header">
-          <h2>Share this conversation</h2>
-          <button className="vs-icon-btn" onClick={() => setShareLink(null)} aria-label="Close share dialog"><Icon name="close" size={16} /></button>
-        </div>
-        <div className="vs-share-row">
-          <input readOnly value={shareLink || ""} className="vs-input vs-share-input" aria-label="Share link" />
-          <button className="vs-primary-btn" onClick={copyShareLink} aria-label="Copy share link to clipboard">
-            {copyState === "copied" ? "Copied!" : copyState === "error" ? "Failed to copy" : "Copy link"}
-          </button>
-        </div>
-      </Modal>
-
-      {showProfile && (
-        <div className="vs-modal-backdrop" onClick={() => setShowProfile(false)} tabIndex={-1} aria-modal="true" role="dialog">
-          <div onClick={(e) => e.stopPropagation()}>
-            <UserProfileComponent onClose={() => setShowProfile(false)} />
-          </div>
-        </div>
-      )}
-    </div>
-  );
-};
-
-export default memo(PersonalizedRecsComponent);
 
 const StyleSheet = memo(function StyleSheet() {
   return (
     <style>{`
-      @import url('https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+      @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@500;600&family=DM+Serif+Display:ital@0;1&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
 
       .vs-root {
         --pink-50:  #FFF7FB;
@@ -735,7 +376,7 @@ const StyleSheet = memo(function StyleSheet() {
         --shadow-md: 0 12px 30px -12px rgba(199, 60, 110, 0.22);
 
         position: relative;
-        min-height: 100vh;
+        height: 100vh;
         width: 100%;
         overflow: hidden;
         font-family: var(--sans);
@@ -749,50 +390,361 @@ const StyleSheet = memo(function StyleSheet() {
         -webkit-font-smoothing: antialiased;
       }
 
-      .vs-empty-state {
+      /* ---------------------------------------------------------------- */
+      /* NEW EDITORIAL HERO (2-COLUMN)                                    */
+      /* ---------------------------------------------------------------- */
+      
+      .vs-hero {
         display: flex;
-        flex-direction: column;
         align-items: center;
         justify-content: center;
-        height: 100%;
-        text-align: center;
-        padding: 40px 20px;
-        animation: floatContainer 6s ease-in-out infinite;
+        flex: 1;
+        width: 100%;
+        min-height: auto; /* Changed to auto to ensure strict vertical fitting */
+        margin: 0;
+        animation: heroFadeUp .7s cubic-bezier(.16,1,.3,1);
       }
-      @keyframes floatContainer { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-10px); } }
+      @keyframes heroFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
-      .vs-empty-img {
-        width: 240px;
-        border-radius: 20px;
-        box-shadow: 0 20px 40px rgba(199, 60, 110, 0.2);
-        margin-bottom: 24px;
-        animation: fadeInScale 0.8s cubic-bezier(0.16, 1, 0.3, 1);
+      .vs-hero-card-premium {
+        position: relative;
+        display: flex;
+        flex-direction: row;
+        align-items: stretch;
+        width: min(940px, 92vw);
+        background: rgba(255, 255, 255, 0.8); /* Reduced opacity for more bookshelf visibility */
+        border: 1.5px solid rgba(255, 228, 239, 0.55);
+        border-radius: 40px;
+        padding: 28px 36px; /* Tightened from 32px 40px */
+        gap: 24px; /* Tightened from 36px */
+        box-shadow: 0 24px 50px -20px rgba(199, 60, 110, 0.22), 0 2px 16px 0 rgba(255,199,222,0.10);
+        backdrop-filter: blur(16px) saturate(120%); /* Stronger frosted glass effect */
+        box-sizing: border-box;
+        z-index: 2;
       }
-      @keyframes fadeInScale { from { opacity: 0; transform: scale(0.95); } to { opacity: 1; transform: scale(1); } }
-
-      .vs-empty-title {
+      .vs-hero-left {
+        flex: 0 0 44%;
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-start;
+        align-items: flex-start;
+        min-width: 0;
+        padding: 18px 0 0 0; /* Move block lower by ~18px, no bottom pad */
+      }
+      .vs-hero-right {
+        flex: 0 0 56%;
+        display: flex;
+        justify-content: center;
+        align-items: flex-start; /* Changed to flex-start to align with headline top */
+        min-width: 0;
+        position: relative;
+        padding-top: 12px; /* Small nudge to visually align precisely with the headline */
+      }
+      .vs-hero-eyebrow {
         font-family: var(--serif);
-        font-size: 28px;
+        font-size: 14px;
+        color: var(--pink-500);
+        margin-bottom: 18px; /* More breathing room above headline */
+        display: block;
+        font-style: italic;
+        letter-spacing: 0.01em;
+        opacity: 0.92;
+      }
+      .vs-hero-title {
+        font-family: var(--serif);
+        font-size: 40px;
+        line-height: 1.08;
         color: var(--pink-700);
-        margin-bottom: 12px;
+        margin: 0 0 6px 0; /* Tighten gap below headline */
+        letter-spacing: -1.2px;
+        font-weight: 700;
+        text-shadow: 0 2px 0 rgba(255,255,255,0.18);
       }
-      .vs-empty-text {
-        color: var(--ink-soft);
+      .vs-hero-sub {
         font-size: 15px;
+        color: var(--ink-soft);
         line-height: 1.6;
-        margin-bottom: 24px;
-        max-width: 350px;
+        margin-bottom: 10px; /* Tighten gap below paragraph */
+        max-width: 440px;
+        font-weight: 500;
+        letter-spacing: 0.01em;
+        opacity: 0.93;
       }
+      .vs-hero-cta-premium {
+        display: inline-flex;
+        align-items: center;
+        gap: 12px;
+        background: linear-gradient(90deg, #ffc7de 0%, #ff8fb3 100%); /* Slightly darker pink for contrast */
+        color: var(--pink-700);
+        border: none;
+        padding: 12px 28px;
+        border-radius: 999px;
+        font-weight: 700;
+        font-size: 15px;
+        font-family: var(--sans);
+        cursor: pointer;
+        box-shadow: 0 6px 24px -8px rgba(231,84,128,0.13), 0 1.5px 0 rgba(255,255,255,0.18);
+        transition: background .22s, color .22s, box-shadow .22s, transform .18s;
+        margin-bottom: 10px; /* Tighten gap below CTA */
+        border: 1.5px solid #ff8fb3; /* Darkened border to match new gradient */
+        letter-spacing: 0.01em;
+      }
+      .vs-hero-cta-premium:hover, .vs-hero-cta-premium:focus-visible {
+        background: linear-gradient(90deg, #ff8fb3 0%, #ffc7de 100%); /* Reversed hover gradient */
+        color: var(--pink-700);
+        box-shadow: 0 12px 32px -8px rgba(231,84,128,0.18), 0 2px 0 rgba(255,255,255,0.18);
+        transform: translateY(-2px) scale(1.03) rotate(-0.5deg);
+      }
+      .vs-hero-pills-premium {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 8px;
+        margin-top: 0;
+        margin-bottom: 0;
+        align-items: center; /* Ensure chips are aligned */
+      }
+      .vs-hero-pill-premium {
+        background: linear-gradient(90deg, #fff7fb 0%, #ffe4ef 100%);
+        border: 1.5px solid #ffc7de;
+        padding: 8px 12px; /* Slightly taller, less horizontal padding */
+        border-radius: 999px;
+        color: var(--pink-700);
+        font-size: 12px;
+        font-weight: 600;
+        font-family: var(--sans);
+        cursor: pointer;
+        box-shadow: 0 2px 8px -2px rgba(231,84,128,0.07);
+        transition: background .18s, color .18s, box-shadow .18s, border-color .18s, transform .18s;
+        margin-bottom: 0;
+        position: relative;
+        min-height: 32px; /* Ensure consistent height */
+        display: flex;
+        align-items: center;
+      }
+      .vs-hero-pill-premium:hover, .vs-hero-pill-premium:focus-visible {
+        background: linear-gradient(90deg, #fff 0%, #ffe4ef 100%);
+        color: var(--pink-500);
+        border-color: var(--pink-300);
+        box-shadow: 0 6px 18px -4px rgba(231,84,128,0.16), 0 1.5px 0 rgba(255,255,255,0.13);
+        z-index: 2;
+        transform: scale(1.045) rotate(-0.5deg);
+      }
+      .vs-hero-polaroid-premium {
+        background: #fff8fb;
+        padding: 16px 16px 54px 16px; /* Increased bottom padding for caption */
+        transform: rotate(2.7deg) skew(-0.5deg, 0.7deg);
+        box-shadow: 0 28px 56px -20px rgba(199,60,110,0.15), 0 2px 20px 0 rgba(255,199,222,0.12);
+        max-width: 350px; /* Increased size by ~13% */
+        border-radius: 8px;
+        position: relative;
+        min-height: 315px; /* Proportional height increase */
+        margin-bottom: 0;
+        margin-top: 0;
+        border: 1.5px solid #ffe4ef;
+        overflow: visible;
+        z-index: 3;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 28px 56px -20px rgba(199,60,110,0.15), 0 2px 20px 0 rgba(255,199,222,0.12);
+      }
+      .vs-hero-polaroid-premium::before {
+        content: '';
+        position: absolute;
+        top: -8px;
+        left: -8px;
+        right: 8px;
+        bottom: 8px;
+        background: rgba(255, 228, 239, 0.3);
+        border-radius: 8px;
+        z-index: -1;
+        transform: rotate(-1.5deg);
+        opacity: 0.6;
+      }
+      .vs-hero-polaroid-premium::after {
+        content: '';
+        position: absolute;
+        top: 6px;
+        left: 6px;
+        right: -6px;
+        bottom: -6px;
+        background: rgba(255, 228, 239, 0.2);
+        border-radius: 8px;
+        z-index: -2;
+        transform: rotate(1.2deg);
+        opacity: 0.4;
+      }
+      .vs-hero-polaroid-premium::before {
+        background-image: radial-gradient(circle at 20% 20%, rgba(231, 84, 128, 0.08) 0%, transparent 40%),
+                         radial-gradient(circle at 80% 80%, rgba(255, 199, 222, 0.12) 0%, transparent 35%);
+        border-radius: 8px;
+      }
+      .vs-hero-polaroid-premium::after {
+        background: linear-gradient(45deg, transparent 48%, rgba(255, 228, 239, 0.15) 50%, transparent 52%),
+                    linear-gradient(-45deg, transparent 48%, rgba(255, 228, 239, 0.15) 50%, transparent 52%);
+        border-radius: 8px;
+      }
+      .vs-hero-polaroid-premium img {
+        width: 100%;
+        height: auto;
+        display: block;
+        border-radius: 10px;
+        box-shadow: 0 2px 16px 0 rgba(231,84,128,0.10);
+        position: relative;
+        z-index: 1;
+      }
+      .vs-hero-quote-premium {
+        position: absolute;
+        bottom: 16px; /* Centered in the 54px bottom padding area */
+        left: 0;
+        right: 0;
+        text-align: center;
+        font-family: 'Caveat', cursive; /* Whimsical handwritten font */
+        font-size: 24px;
+        color: #b01549; /* Richer pink color */
+        transform: rotate(-1.5deg); /* Slight handwritten slant */
+        opacity: 0.95;
+        letter-spacing: 0.04em; /* Increased letter spacing */
+        background: transparent; /* Removed background to look natively written */
+        padding: 0;
+        border: none;
+        box-shadow: none;
+        white-space: nowrap; /* Forces one clean line */
+        z-index: 2;
+      }
+
+      @media (max-width: 900px) {
+        .vs-hero-card-premium {
+          flex-direction: column;
+          padding: 24px 16px;
+          gap: 20px;
+        }
+        .vs-hero-left, .vs-hero-right {
+          flex: 1 1 100%;
+          padding: 0;
+        }
+        .vs-hero-polaroid-premium {
+          margin-top: 0;
+          max-width: 280px;
+          min-height: 260px;
+        }
+        .vs-hero-polaroid-premium::before,
+        .vs-hero-polaroid-premium::after {
+          display: none;
+        }
+      }
+      @media (max-width: 540px) {
+        .vs-hero-title {
+          font-size: 32px;
+        }
+        .vs-hero-card-premium {
+          padding: 16px 8px;
+          gap: 12px;
+        }
+        .vs-hero-polaroid-premium {
+          max-width: 96vw;
+          min-height: 240px;
+        }
+        .vs-hero-polaroid-premium::before,
+        .vs-hero-polaroid-premium::after {
+          display: none;
+        }
+      }
+
+
+      /* ---------------------------------------------------------------- */
+      /* SEARCH BAR & INPUT AREA                                          */
+      /* ---------------------------------------------------------------- */
+      .vs-input-area { 
+        display: flex; 
+        flex-direction: column; 
+        gap: 12px; 
+        width: min(1100px, 92vw); 
+        margin: 0 auto; 
+        position: relative;
+        z-index: 10;
+        margin-bottom: 24px;
+      }
+      
+      .vs-refine-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+      .vs-refine-chip {
+        display: inline-flex; align-items: center; gap: 6px;
+        background: rgba(255,255,255,0.7); border: 1px solid var(--pink-200);
+        color: var(--pink-700); font-size: 12px; font-weight: 600;
+        padding: 6px 12px; border-radius: 999px; cursor: pointer;
+        transition: background .2s, transform .15s, box-shadow .2s;
+      }
+      .vs-refine-chip:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(231,84,128,0.16); }
+
+      .vs-form { display: flex; gap: 12px; align-items: center; }
+      
+      .vs-input {
+        flex: 1; min-width: 0;
+        padding: 16px 24px; 
+        background: rgba(255, 253, 254, 0.85);
+        backdrop-filter: blur(20px);
+        border: 2px solid #FFC7DE;
+        border-radius: 999px;
+        font-family: 'Plus Jakarta Sans', sans-serif; 
+        font-size: 16px; 
+        font-weight: 600;
+        color: var(--pink-700);
+        box-shadow: 0 8px 20px -8px rgba(199,60,110,0.2);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      }
+      .vs-input:focus { 
+        outline: none; 
+        background: #fff; 
+        border-color: var(--pink-300); 
+        box-shadow: 0 10px 24px -6px rgba(199,60,110,0.3);
+        transform: translateY(-2px);
+      }
+      .vs-input::placeholder { color: #E75480; opacity: 0.6; font-weight: 400; font-style: italic; }
+
+      .vs-send-btn {
+        width: 52px; height: 52px;
+        border-radius: 50%;
+        display: flex; align-items: center; justify-content: center;
+        background: linear-gradient(135deg, var(--pink-300), var(--pink-500));
+        color: #fff; border: none; cursor: pointer; flex-shrink: 0;
+        box-shadow: 0 12px 24px -8px rgba(231,84,128,0.5);
+        transition: all .25s ease;
+      }
+      .vs-send-btn:hover:not(:disabled) { 
+        transform: translateY(-2px) scale(1.05); 
+        box-shadow: 0 16px 28px -6px rgba(231,84,128,0.6); 
+      }
+      .vs-send-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
+      
+      /* Redesigned Stop Button */
+      .vs-stop-btn { 
+        background: linear-gradient(135deg, #FF7EB3, #FF5D9E, #F06292) !important;
+        box-shadow: 0 8px 20px -5px rgba(240, 98, 146, 0.4) !important;
+        border: 1px solid rgba(255, 255, 255, 0.3) !important;
+        backdrop-filter: blur(4px);
+        transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1) !important;
+      }
+      .vs-stop-btn:hover:not(:disabled) {
+        transform: translateY(-2px) scale(1.02) !important;
+        filter: brightness(1.1);
+        box-shadow: 0 12px 30px -5px rgba(240, 98, 146, 0.6) !important;
+      }
+      .vs-stop-btn:active {
+        transform: scale(0.95) !important;
+      }
+
+      .vs-spinner {
+        width: 20px; height: 20px; border-radius: 50%;
+        border: 2.5px solid rgba(255,255,255,0.35); border-top-color: #fff;
+        animation: spin .8s linear infinite;
+      }
+      @keyframes spin { to { transform: rotate(360deg); } }
+
+      .vs-noresults {
+        text-align: center;
+        padding: 30px 16px;
+      }
+      .vs-noresults-title { font-family: var(--serif); font-size: 20px; color: var(--pink-700); margin: 0 0 6px; }
+      .vs-noresults-text { color: var(--ink-soft); font-size: 13.5px; margin: 0 0 16px; }
 
       .vs-aurora { position: absolute; inset: 0; overflow: hidden; z-index: 0; pointer-events: none; }
-      .vs-blob   { position: absolute; border-radius: 50%; filter: blur(90px); opacity: 0.55; mix-blend-mode: screen; will-change: transform; }
-      .vs-blob-1 { width: 520px; height: 520px; background: var(--pink-300); top: -160px; left: -120px; animation: drift1 22s ease-in-out infinite; }
-      .vs-blob-2 { width: 440px; height: 440px; background: var(--pink-200); bottom: -140px; right: -100px; animation: drift2 26s ease-in-out infinite; }
-      .vs-blob-3 { width: 360px; height: 360px; background: #ffb8d0;         top: 45%; left: 55%; animation: drift3 30s ease-in-out infinite; }
-      .vs-blob-4 { width: 300px; height: 300px; background: #ffd6e8;         bottom: 20%; left: 8%; animation: drift1 34s ease-in-out infinite reverse; }
-      @keyframes drift1 { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(60px,50px,0) scale(1.15); } }
-      @keyframes drift2 { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-70px,-40px,0) scale(1.1); } }
-      @keyframes drift3 { 0%,100% { transform: translate3d(0,0,0) scale(1); } 50% { transform: translate3d(-40px,60px,0) scale(0.9); } }
       .vs-grain {
         position: absolute; inset: 0; opacity: 0.05; mix-blend-mode: multiply;
         background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
@@ -802,11 +754,11 @@ const StyleSheet = memo(function StyleSheet() {
         position: relative; z-index: 1;
         display: flex; gap: 24px;
         width: 100%; max-width: 1240px;
-        margin: 0 auto; min-height: calc(100vh - 48px);
+        margin: 0 auto; height: calc(100vh - 48px);
       }
       .vs-main {
         flex: 1; display: flex; flex-direction: column; gap: 18px;
-        min-width: 0;
+        min-width: 0; min-height: 0;
       }
 
       .vs-glass {
@@ -816,95 +768,39 @@ const StyleSheet = memo(function StyleSheet() {
         box-shadow: var(--shadow-lg);
       }
 
-      .vs-chat::-webkit-scrollbar, .vs-sidebar-body::-webkit-scrollbar,
+      .vs-sidebar-body::-webkit-scrollbar,
       .vs-modal-body::-webkit-scrollbar { width: 8px; }
-      .vs-chat::-webkit-scrollbar-thumb, .vs-sidebar-body::-webkit-scrollbar-thumb,
+      .vs-sidebar-body::-webkit-scrollbar-thumb,
       .vs-modal-body::-webkit-scrollbar-thumb {
         background: linear-gradient(var(--pink-200), var(--pink-300));
         border-radius: 10px;
       }
 
-      .vs-header {
-        display: flex; align-items: center; justify-content: space-between;
-        gap: 20px; padding: 18px 24px; border-radius: var(--radius-lg);
+      .vs-chat::-webkit-scrollbar { width: 8px; }
+      .vs-chat::-webkit-scrollbar-track {
+        background: #FCE7F3;
+        border-radius: 10px;
+        margin: 16px 0;
       }
-      .vs-header-left { display: flex; align-items: center; gap: 16px; min-width: 0; }
-      .vs-logo {
-        position: relative; width: 52px; height: 52px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        background: radial-gradient(circle at 30% 25%, #fff, var(--pink-100));
-        color: var(--pink-500);
-        box-shadow: inset 0 2px 6px rgba(255,255,255,0.9), 0 8px 20px rgba(231,84,128,0.25);
-        flex-shrink: 0;
+      .vs-chat::-webkit-scrollbar-thumb {
+        background: #EC4899;
+        border-radius: 10px;
       }
-      .vs-logo-ring {
-        position: absolute; inset: -4px; border-radius: 50%;
-        border: 1.5px dashed var(--pink-300); opacity: 0.7;
-        animation: spinSlow 18s linear infinite;
-      }
-      .vs-logo-ring-2 { inset: -10px; border-color: var(--pink-200); animation-duration: 30s; animation-direction: reverse; }
-      @keyframes spinSlow { to { transform: rotate(360deg); } }
-
-      .vs-header-title-row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
-      .vs-title {
-        font-family: var(--serif); font-size: 34px; line-height: 1; margin: 0;
-        background: linear-gradient(90deg, var(--pink-700), var(--pink-500), var(--pink-300), var(--pink-500), var(--pink-700));
-        background-size: 200% auto; -webkit-background-clip: text; background-clip: text; color: transparent;
-        animation: shimmer 8s linear infinite; letter-spacing: -0.5px;
-      }
-      @keyframes shimmer { to { background-position: 200% 0; } }
-      .vs-subtitle {
-        margin: 4px 0 0; font-size: 12px; color: var(--ink-soft);
-        font-weight: 500; letter-spacing: 0.4px; text-transform: uppercase; opacity: 0.75;
-      }
-      .vs-pill {
-        display: inline-flex; align-items: center; gap: 5px;
-        background: linear-gradient(135deg, var(--pink-300), var(--pink-500));
-        color: #fff; font-size: 10px; font-weight: 700; letter-spacing: 1px;
-        padding: 4px 10px; border-radius: 20px;
-        box-shadow: 0 4px 10px rgba(231,84,128,0.35);
-      }
-      .vs-header-right { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
-      .vs-header-hint {
-        background: rgba(255,255,255,0.7); border: 1px solid var(--pink-200);
-        color: var(--pink-700); font-size: 12px; font-weight: 600;
-        padding: 8px 14px; border-radius: 20px;
+      .vs-chat::-webkit-scrollbar-thumb:hover {
+        background: #DB2777;
       }
 
       .vs-chat {
-        flex: 1; min-height: 400px;
+        flex: 1; min-height: 0;
+        display: flex; flex-direction: column;
         overflow-y: auto; overscroll-behavior: contain;
         border-radius: var(--radius-lg); padding: 28px 32px;
+        scroll-behavior: smooth;
+        scrollbar-width: thin;
+        scrollbar-color: #EC4899 #FCE7F3;
       }
 
-      .vs-welcome {
-        display: flex; flex-direction: column; align-items: center;
-        text-align: center; padding: 40px 16px; gap: 12px;
-      }
-      .vs-welcome-orb {
-        width: 84px; height: 84px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        color: var(--pink-500);
-        background: radial-gradient(circle at 30% 25%, #fff, var(--pink-100));
-        box-shadow: 0 20px 40px -12px rgba(231,84,128,0.35), inset 0 2px 6px rgba(255,255,255,0.9);
-        animation: floaty 3.6s ease-in-out infinite; margin-bottom: 8px;
-      }
-      @keyframes floaty { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-      .vs-welcome-title { font-family: var(--serif); font-size: 40px; color: var(--pink-700); margin: 0; letter-spacing: -1px; }
-      .vs-welcome-sub  { max-width: 440px; margin: 0; color: var(--ink-soft); font-size: 15px; line-height: 1.55; }
-      .vs-quick-moods  { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: 20px; max-width: 640px; }
-
-      .vs-chip {
-        background: rgba(255,255,255,0.75); border: 1px solid rgba(255,143,179,0.3);
-        color: var(--pink-700); font-family: var(--sans); font-size: 13px; font-weight: 600;
-        padding: 10px 18px; border-radius: 999px; cursor: pointer;
-        transition: transform .2s cubic-bezier(.16,1,.3,1), background .2s, box-shadow .25s, border-color .2s;
-        backdrop-filter: blur(10px);
-      }
-      .vs-chip:hover { background: #fff; border-color: var(--pink-300); transform: translateY(-2px); box-shadow: 0 10px 22px rgba(231,84,128,0.18); }
-      .vs-chip:active { transform: translateY(0); }
-
-      .vs-conv { margin-bottom: 40px; }
+      .vs-conv { margin-bottom: 40px; width: 100%; }
       .vs-user-row { display: flex; justify-content: flex-end; margin-bottom: 18px; }
       .vs-user-bubble {
         background: linear-gradient(135deg, var(--pink-300), var(--pink-500));
@@ -925,22 +821,6 @@ const StyleSheet = memo(function StyleSheet() {
       .vs-dot:nth-child(3) { animation-delay: 0.15s; }
       .vs-dot:nth-child(4) { animation-delay: 0.3s; }
       @keyframes bounceDot { 0%,60%,100% { transform: translateY(0); opacity: 0.6; } 30% { transform: translateY(-5px); opacity: 1; } }
-
-      .vs-found {
-        display: inline-flex; align-items: center; gap: 8px;
-        color: var(--ink-soft); font-size: 14px; font-weight: 600; margin: 12px 0 18px;
-      }
-      .vs-found-pill {
-        background: linear-gradient(135deg, #fff, var(--pink-100));
-        border: 1px solid var(--pink-200); color: var(--pink-700);
-        padding: 3px 12px; border-radius: 999px; font-weight: 800; font-size: 14px;
-      }
-      .vs-groq-badge {
-        margin-left: 4px;
-        background: linear-gradient(90deg, var(--pink-200), var(--pink-300));
-        color: var(--ink); padding: 3px 10px; border-radius: 10px;
-        font-size: 10px; font-weight: 800; letter-spacing: 1px;
-      }
 
       .vs-error {
         display: flex; align-items: center; justify-content: space-between; gap: 12px;
@@ -1057,9 +937,9 @@ const StyleSheet = memo(function StyleSheet() {
         border-color: var(--pink-600);
       }
 
-      .vs-skeleton-card { pointer-events: none; }
+      .vs-skeleton-card { pointer-events: none; background: linear-gradient(165deg, #FFFBFD, #FFF8FB); }
       .vs-skeleton {
-        background: linear-gradient(90deg, rgba(255,231,240,0.5), rgba(255,255,255,0.7), rgba(255,231,240,0.5));
+        background: linear-gradient(90deg, #F8DCE8, #FFEFF6, #F8DCE8);
         background-size: 200% 100%;
         animation: skeletonShimmer 1.5s ease-in-out infinite;
         border-radius: 8px;
@@ -1096,49 +976,6 @@ const StyleSheet = memo(function StyleSheet() {
       }
       .vs-ghost-btn:hover { background: rgba(255,255,255,0.7); }
 
-      .vs-input-area { display: flex; flex-direction: column; gap: 12px; }
-      .vs-refine-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
-      .vs-refine-chip {
-        display: inline-flex; align-items: center; gap: 6px;
-        background: rgba(255,255,255,0.7); border: 1px solid var(--pink-200);
-        color: var(--pink-700); font-size: 12.5px; font-weight: 600;
-        padding: 7px 14px; border-radius: 999px; cursor: pointer;
-        transition: background .2s, transform .15s, box-shadow .2s;
-      }
-      .vs-refine-chip:hover { background: #fff; transform: translateY(-1px); box-shadow: 0 6px 14px rgba(231,84,128,0.16); }
-
-      .vs-form { display: flex; gap: 10px; align-items: center; }
-      .vs-input {
-        flex: 1; min-width: 0;
-        padding: 15px 22px;
-        background: rgba(255,255,255,0.92);
-        border: 1px solid rgba(255,199,222,0.7);
-        border-radius: 999px;
-        font-family: var(--sans); font-size: 14.5px; color: var(--ink);
-        box-shadow: inset 0 2px 6px rgba(0,0,0,0.03), 0 6px 18px rgba(199,60,110,0.08);
-        transition: border-color .2s, box-shadow .2s, background .2s;
-      }
-      .vs-input:focus { outline: none; background: #fff; border-color: var(--pink-300); box-shadow: 0 0 0 4px rgba(255,143,179,0.25); }
-      .vs-input::placeholder { color: #d489a4; }
-
-      .vs-send-btn {
-        width: 52px; height: 52px; border-radius: 50%;
-        display: flex; align-items: center; justify-content: center;
-        background: linear-gradient(135deg, var(--pink-300), var(--pink-500));
-        color: #fff; border: none; cursor: pointer; flex-shrink: 0;
-        box-shadow: 0 10px 24px -8px rgba(231,84,128,0.55);
-        transition: transform .2s, box-shadow .2s;
-      }
-      .vs-send-btn:hover:not(:disabled) { transform: translateY(-2px) scale(1.03); }
-      .vs-send-btn:disabled { opacity: 0.55; cursor: not-allowed; }
-      .vs-spinner {
-        width: 18px; height: 18px; border-radius: 50%;
-        border: 2.5px solid rgba(255,255,255,0.35); border-top-color: #fff;
-        animation: spin .8s linear infinite;
-      }
-      @keyframes spin { to { transform: rotate(360deg); } }
-
-      .vs-toolbar { display: flex; gap: 4px; padding: 6px; border-radius: 999px; flex-shrink: 0; }
       .vs-icon-btn {
         width: 38px; height: 38px; border-radius: 50%;
         display: inline-flex; align-items: center; justify-content: center;
@@ -1212,18 +1049,6 @@ const StyleSheet = memo(function StyleSheet() {
         font-size: 14px; line-height: 1.6; color: var(--ink);
       }
 
-      .vs-saved-item {
-        text-align: left; background: #fff; border: 1px solid var(--pink-200);
-        border-radius: var(--radius-sm); padding: 12px 16px; cursor: pointer;
-        transition: transform .2s, box-shadow .2s, border-color .2s;
-      }
-      .vs-saved-item:hover { transform: translateY(-2px); border-color: var(--pink-300); box-shadow: 0 10px 20px -10px rgba(231,84,128,0.28); }
-      .vs-saved-title { font-family: var(--serif); font-size: 15px; color: var(--pink-700); margin-bottom: 4px; }
-      .vs-saved-time  { font-size: 11px; color: var(--ink-soft); }
-
-      .vs-share-row { display: flex; gap: 10px; align-items: center; }
-      .vs-share-input { padding: 12px 16px; font-size: 12.5px; border-radius: 14px; }
-
       .vs-fade-in {
         opacity: 0;
         animation: fadeIn .55s cubic-bezier(.16,1,.3,1) forwards;
@@ -1234,29 +1059,368 @@ const StyleSheet = memo(function StyleSheet() {
       @media (max-width: 900px) {
         .vs-shell { flex-direction: column; }
         .vs-sidebar { width: 100%; max-height: 320px; }
+        .vs-hero-card { flex-direction: column; padding: 30px; gap: 30px; }
       }
       @media (max-width: 540px) {
         .vs-sidebar { display: none !important; }
+        .vs-hero-title { font-size: 40px; }
       }
       @media (max-width: 640px) {
         .vs-root { padding: 14px 12px; }
-        .vs-header { padding: 14px 16px; }
-        .vs-title { font-size: 26px; }
-        .vs-header-hint { display: none; }
         .vs-chat { padding: 18px 16px; }
-        .vs-welcome-title { font-size: 30px; }
         .vs-grid { grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
-        .vs-toolbar { display: none; }
         .vs-input { padding: 13px 18px; font-size: 14px; }
         .vs-send-btn { width: 48px; height: 48px; }
       }
 
       @media (prefers-reduced-motion: reduce) {
-        .vs-blob, .vs-logo-ring, .vs-title, .vs-cover-skeleton, .vs-skeleton,
-        .vs-welcome-orb, .vs-fade-in, .vs-modal-pop, .vs-dot, .vs-spinner {
+        .vs-fade-in, .vs-modal-pop, .vs-dot, .vs-spinner {
           animation: none !important;
         }
       }
     `}</style>
   );
 });
+
+/* ============================================================================
+ * 6. MAIN COMPONENT
+ * ==========================================================================*/
+
+const PersonalizedRecsComponent = () => {
+  useBooksData();
+
+  const chatRef = useRef(null);
+  const abortControllerRef = useRef(null);
+  const sessionIdRef = useRef(
+    typeof crypto !== "undefined" && crypto.randomUUID
+      ? crypto.randomUUID()
+      : String(Date.now())
+  );
+
+  const [mood, setMood] = useState("");
+  const [currentMood, setCurrentMood] = useState("");
+  const [conversations, setConversations] = useState([]);
+  const [tbrList, setTbrList] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [selectedBook, setSelectedBook] = useState(null);
+
+  useEffect(() => {
+    setTbrList(safeParse(localStorage.getItem(LS_TBR), []));
+  }, []);
+
+  useEffect(() => {
+    if (chatRef.current) chatRef.current.scrollTop = chatRef.current.scrollHeight;
+  }, [conversations]);
+
+  const tbrTitleSet = useMemo(
+    () => new Set(tbrList.map((b) => b.title?.toLowerCase())),
+    [tbrList]
+  );
+  const isInTbr = useCallback(
+    (book) => tbrTitleSet.has(book?.title?.toLowerCase()),
+    [tbrTitleSet]
+  );
+
+  const toggleTbr = useCallback((book) => {
+    setTbrList((prev) => {
+      const exists = prev.some((b) => b.title === book.title);
+      const next = exists
+        ? prev.filter((b) => b.title !== book.title)
+        : [...prev, book];
+      localStorage.setItem(LS_TBR, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const clearAll = useCallback(() => {
+    setConversations([]);
+    setCurrentMood("");
+    setMood("");
+    seenTitles.clear();
+  }, []);
+
+  const handleEmptyReset = useCallback(() => {
+    clearAll();
+    const input = document.querySelector('.vs-input');
+    if (input) input.focus();
+  }, [clearAll]);
+
+  const handleHeroSuggestion = useCallback((text) => {
+    setMood(text);
+    const input = document.querySelector('.vs-input');
+    if (input) input.focus();
+  }, []);
+
+  const refine = useCallback((type) => {
+    setMood(currentMood + (REFINEMENTS[type] || ""));
+  }, [currentMood]);
+
+  const requestRecs = useCallback(async (query, signal) => {
+    const response = await fetch("/api/recommend", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ mood: query, sessionId: sessionIdRef.current }),
+      signal
+    });
+    if (!response.ok) throw new Error("Backend connection failed.");
+    const data = await response.json();
+    return extractBooks(data);
+  }, []);
+
+  const stopSearch = useCallback(() => {
+    if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        setLoading(false);
+        setConversations(prev => prev.slice(0, -1));
+    }
+  }, []);
+
+  const submitMood = useCallback(async (e) => {
+    e?.preventDefault?.();
+    const query = mood.trim();
+    if (!query || loading) return;
+
+    setCurrentMood(query);
+    setMood("");
+    setLoading(true);
+
+    abortControllerRef.current = new AbortController();
+    
+    const convId = `c-${Date.now()}`;
+    setConversations((prev) => [
+      ...prev,
+      { id: convId, query, books: [], timestamp: new Date(), isLoading: true, error: null },
+    ]);
+
+    try {
+      const { books } = await requestRecs(query, abortControllerRef.current.signal);
+
+      const unique = dedupeAgainstSeen(books);
+      const formatted = unique.map((b, i) => formatBook(b, `${convId}-${i}`));
+
+      setConversations((prev) => prev.map((c) =>
+        c.id === convId ? { ...c, books: formatted, isLoading: false } : c
+      ));
+    } catch (err) {
+      if (err.name === 'AbortError') {
+          return;
+      }
+      setConversations((prev) => prev.map((c) =>
+        c.id === convId ? { ...c, isLoading: false, error: err.message || "Network error. Is the backend running?" } : c
+      ));
+    } finally {
+      setLoading(false);
+    }
+  }, [mood, loading, requestRecs]);
+
+  const loadMore = useCallback(async () => {
+    if (!currentMood || loading) return;
+    setLoading(true);
+
+    setConversations((prev) => {
+      if (prev.length === 0) return prev;
+      const next = prev.slice();
+      next[next.length - 1] = { ...next[next.length - 1], isLoadingMore: true };
+      return next;
+    });
+
+    try {
+      const { books } = await requestRecs(currentMood);
+      const unique = dedupeAgainstSeen(books).slice(0, 4);
+
+      const formatted = unique.map((b, i) => formatBook(b, `more-${Date.now()}-${i}`));
+
+      setConversations((prev) => {
+        const next = prev.slice();
+        const last = { ...next[next.length - 1] };
+        last.books = [...last.books, ...formatted];
+        last.isLoadingMore = false;
+        next[next.length - 1] = last;
+        return next;
+      });
+    } catch {
+      setConversations((prev) => {
+        const next = prev.slice();
+        next[next.length - 1] = { ...next[next.length - 1], isLoadingMore: false };
+        return next;
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [currentMood, loading, requestRecs]);
+
+  const retryLast = useCallback(() => {
+    const last = conversations[conversations.length - 1];
+    if (!last?.error) return;
+    setConversations((prev) => prev.slice(0, -1));
+    setMood(last.query);
+    setTimeout(() => {
+      const form = document.getElementById("vs-mood-form");
+      form?.requestSubmit?.();
+    }, 0);
+  }, [conversations]);
+
+  const refineButtons = useMemo(() => ([
+    { key: "darker", label: "Darker", icon: "moon" },
+    { key: "lighter", label: "Lighter", icon: "sun" },
+    { key: "fastpaced", label: "Fast-Paced", icon: "zap" },
+    { key: "slowburn", label: "Slow Burn", icon: "fire" },
+  ]), []);
+
+  return (
+   <div 
+      className="vs-root"
+      style={conversations.length === 0 ? {
+        backgroundImage: `url(${heroBackground})`,
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed"
+      } : {}}
+    >
+      <StyleSheet />
+
+      <div className="vs-aurora" aria-hidden="true">
+        <div className="vs-grain" />
+      </div>
+
+      <div className="vs-shell">
+        <main className="vs-main" style={{ maxWidth: tbrList.length > 0 ? 820 : '100%' }}>
+          <div className="vs-input-area">
+            {conversations.length > 0 && !loading && currentMood && (
+              <div className="vs-refine-row">
+                {refineButtons.map((r) => (
+                  <button key={r.key} type="button" className="vs-refine-chip" onClick={() => refine(r.key)}>
+                    <Icon name={r.icon} size={13} /> {r.label}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            <form id="vs-mood-form" onSubmit={submitMood} className="vs-form" autoComplete="off">
+              <input
+                className="vs-input"
+                type="text"
+                value={mood}
+                onChange={(e) => setMood(e.target.value)}
+                placeholder="Tell me what you're looking for..."
+                disabled={loading}
+                aria-label="Search for books by mood, title, or author"
+                autoFocus
+              />
+              <button
+                type={loading ? "button" : "submit"}
+                className={`vs-send-btn ${loading ? 'vs-stop-btn' : ''}`}
+                onClick={loading ? stopSearch : undefined}
+                disabled={!loading && !mood.trim()}
+                aria-label={loading ? "Stop searching" : "Get recommendations"}
+              >
+                {loading ? <Icon name="close" size={18} /> : <Icon name="send" size={18} />}
+              </button>
+            </form>
+          </div>
+
+          <section ref={chatRef} className={`vs-chat ${conversations.length === 0 ? "" : "vs-glass"}`}>
+            {conversations.length === 0 ? (
+              <EmptyState onReset={handleEmptyReset} mood={mood} onSuggestion={handleHeroSuggestion} />
+            ) : (
+              conversations.map((conv, convIdx) => (
+                <div key={conv.id} className="vs-conv vs-fade-in">
+                  <div className="vs-user-row">
+                    <div className="vs-user-bubble">{conv.query}</div>
+                  </div>
+
+                  {conv.isLoading ? (
+                    <div className="vs-typing" aria-busy="true">
+                      <span>Finding books for you</span>
+                      <span className="vs-dot" /><span className="vs-dot" /><span className="vs-dot" />
+                    </div>
+                  ) : conv.books?.length > 0 ? null : !conv.isLoading && conv.books?.length === 0 ? (
+                      <NoResultsState onReset={handleEmptyReset} />
+                  ) : null}
+
+                  {conv.error && (
+                    <div className="vs-error" role="alert">
+                      <p>{conv.error}</p>
+                      <button type="button" className="vs-ghost-btn" onClick={retryLast}>
+                        <Icon name="refresh" size={14} /> Try again
+                      </button>
+                    </div>
+                  )}
+
+                  <div className="vs-grid">
+                    {conv.books?.map((book, bidx) => (
+                      <BookCard
+                        key={book.id}
+                        book={book}
+                        saved={isInTbr(book)}
+                        onSelect={setSelectedBook}
+                        onToggleTbr={toggleTbr}
+                        index={bidx}
+                      />
+                    ))}
+                    {(conv.isLoading || conv.isLoadingMore) &&
+                      Array.from({ length: 12 }).map((_, i) => (
+                        <SkeletonCard key={`sk-${conv.id}-${i}`} index={conv.books?.length + i} />
+                      ))}
+                  </div>
+
+                  {convIdx === conversations.length - 1 &&
+                    !loading &&
+                    conv.books?.length > 0 && (
+                      <div className="vs-more-row">
+                        <button className="vs-primary-btn" onClick={loadMore}>
+                          Show more books
+                        </button>
+                      </div>
+                    )}
+                </div>
+              ))
+            )}
+          </section>
+          
+        </main>
+
+        {tbrList.length > 0 && (
+          <aside className="vs-sidebar vs-glass vs-fade-in" role="complementary" aria-label="Your reading list">
+            <div className="vs-sidebar-header">
+              <h2><Icon name="vault" size={18} /> Your List</h2>
+              <p>{tbrList.length} {tbrList.length === 1 ? "book" : "books"} saved</p>
+            </div>
+            <div className="vs-sidebar-body">
+              {tbrList.map((book) => (
+                <TbrItem key={book.title} book={book} onRemove={toggleTbr} />
+              ))}
+            </div>
+          </aside>
+        )}
+      </div>
+
+      <Modal open={!!selectedBook} onClose={() => setSelectedBook(null)}>
+        {selectedBook && (
+          <>
+            <div className="vs-modal-header">
+              <h2 className="vs-modal-title" title={selectedBook.title}>{selectedBook.title}</h2>
+              <button className="vs-icon-btn" onClick={() => setSelectedBook(null)} aria-label="Close book details"><Icon name="close" size={16} /></button>
+            </div>
+            <BookCover
+              coverUrl={selectedBook.coverUrl}
+              title={selectedBook.title}
+              className="vs-modal-cover"
+            />
+            <p className="vs-modal-author">by {selectedBook.author}</p>
+            {selectedBook.reason && <div className="vs-modal-reason">{selectedBook.reason}</div>}
+            <button
+              className="vs-primary-btn vs-primary-btn-block"
+              onClick={() => toggleTbr(selectedBook)}
+              aria-label={isInTbr(selectedBook) ? `Remove ${selectedBook.title} from your list` : `Add ${selectedBook.title} to your list`}
+            >
+              {isInTbr(selectedBook) ? "In your list" : "Save to list"}
+            </button>
+          </>
+        )}
+      </Modal>
+    </div>
+  );
+};
+
+export default memo(PersonalizedRecsComponent);

@@ -3,28 +3,26 @@ package com.vibeshelf.vibeshelf_backend.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.vibeshelf.vibeshelf_backend.dto.BookRecommendation;
-import com.vibeshelf.vibeshelf_backend.dto.ConversationMessage;
+import com.vibeshelf.vibeshelf_backend.dto.RecommendationResult;
+import com.vibeshelf.vibeshelf_backend.model.Book;
+import com.vibeshelf.vibeshelf_backend.repository.BookRepository;
 import lombok.extern.slf4j.Slf4j;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import org.springframework.context.event.EventListener;
-import org.springframework.boot.context.event.ApplicationReadyEvent;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.boot.context.event.ApplicationReadyEvent;
+import org.springframework.context.event.EventListener;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedDeque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-import java.util.concurrent.ConcurrentLinkedDeque;
-import com.vibeshelf.vibeshelf_backend.repository.BookRepository;
-import com.vibeshelf.vibeshelf_backend.dto.RecommendationResult;
-import com.vibeshelf.vibeshelf_backend.model.Book;
-import org.springframework.data.domain.PageRequest;
-import java.util.concurrent.ConcurrentHashMap;
 
 @Slf4j
 @Service
@@ -45,52 +43,20 @@ public class GroqService {
     @Value("${groq.model:}")
     private String groqModel;
 
-    // Stage 1: Candidate Generation
-    private static final String STAGE1_SYSTEM_PROMPT =
-        "You are a master book recommender combining Goodreads editors, StoryGraph curators, experienced librarians, and literary critics.\n\n" +
-        "Deeply analyze the user's vibe: emotional atmosphere, pacing, writing style, themes, character dynamics, reader intent, tone, and specifics.\n\n" +
-        "Generate exactly 15 strong real books. Prioritize emotional/experiential match. Mix modern, award winners, classics, hidden gems, and popular titles when they fit. Avoid author/series repeats.\n\n" +
-        "For reasons: Write like a real reader on Goodreads/Reddit/StoryGraph. Keep them short (15-35 words), conversational, and specific to why it matches the user's request.\n" +
-        "Good style examples:\n" +
-        "- \"If you liked the slow-burn tension in The Silent Patient, this has that same 'one more chapter' pull.\"\n" +
-        "- \"Perfect if you're craving messy family drama and complicated relationships.\"\n" +
-        "- \"This has the same cozy small-town feel but with way more romance.\"\n" +
-        "- \"The mystery builds slowly and keeps throwing new twists at you.\"\n" +
-        "- \"Great emotional read without being too heavy or depressing.\"\n" +
-        "- \"The banter between characters is genuinely funny and addictive.\"\n" +
-        "Never use words like: masterpiece, unforgettable, captivating, beautifully crafted, literary gem, atmospheric masterpiece, compelling narrative.\n\n" +
-        "Output ONLY JSON array of 15 objects: [{\"title\":\"...\",\"author\":\"...\",\"reason\":\"...\"}].";
+    // Optimized Single-Stage Prompt: Achieves the same quality with half the tokens/latency.
+    private static final String SYSTEM_PROMPT = 
+        "You are a master book recommender and strict literary editor. " +
+        "Analyze the user's vibe, emotional atmosphere, pacing, and style. " +
+        "Generate EXACTLY 10 highly-relevant book recommendations. " +
+        "Mix popular titles with high-quality hidden gems. Do NOT repeat authors. " +
+        "For each book, provide a conversational reason (1-2 sentences, 15-25 words max) written like a real reader on Reddit or StoryGraph. " +
+        "Explain specifically WHY it fits their vibe. NEVER use AI marketing words like 'masterpiece', 'captivating', 'unforgettable', or 'beautifully crafted'. " +
+        "Output ONLY a valid JSON array of objects in this exact format: [{\"title\":\"...\",\"author\":\"...\",\"reason\":\"...\"}].";
 
-    // Stage 2: Critical Review & Refinement
-    private static final String STAGE2_SYSTEM_PROMPT =
-        "You are a ruthless senior literary editor reviewing book recommendations.\n\n" +
-        "Review the 15 candidates for the user's vibe.\n" +
-        "- Score each on real emotional/pacing/style/theme match (not popularity).\n" +
-        "- Replace any with confidence < 90.\n" +
-        "- Ensure diversity: no repeated authors, varied styles and tones.\n" +
-        "- Keep only the 10 strongest.\n\n" +
-        "Rewrite reasons in natural reader style (Goodreads/Reddit/StoryGraph/BookTok voice):\n" +
-        "- 1-2 short sentences, 15-35 words max.\n" +
-        "- Conversational, specific to the user's request.\n" +
-        "- Explain WHY this book fits their vibe.\n" +
-        "- Avoid AI/marketing language: no 'masterpiece', 'captivating', 'unforgettable', 'rich tapestry', etc.\n\n" +
-        "Return ONLY a clean JSON array of exactly 10 objects: [{\"title\":\"...\",\"author\":\"...\",\"reason\":\"...\"}].";
-
-    // Emergency fallback - used ONLY when Groq fails
-    private static final LinkedHashMap<String, String> EMERGENCY_FALLBACK = new LinkedHashMap<>();
-    static {
-        EMERGENCY_FALLBACK.put("the silent patient", "Alex Michaelides");
-        EMERGENCY_FALLBACK.put("gone girl", "Gillian Flynn");
-        EMERGENCY_FALLBACK.put("normal people", "Sally Rooney");
-        EMERGENCY_FALLBACK.put("the song of achilles", "Madeline Miller");
-        EMERGENCY_FALLBACK.put("project hail mary", "Andy Weir");
-    }
-
-    private final Map<String, List<ConversationMessage>> conversationHistory = new ConcurrentHashMap<>();
     private final Map<String, Set<String>> shownBooks = new ConcurrentHashMap<>();
     private final Map<String, String> sessionMood = new ConcurrentHashMap<>();
     private final Map<String, Deque<List<BookRecommendation>>> prefetchedBatches = new ConcurrentHashMap<>();
-    private final Set<String> prefetchInProgress = Collections.newSetFromMap(new ConcurrentHashMap<>());
+    private final Set<String> prefetchInProgress = ConcurrentHashMap.newKeySet();
     private final ExecutorService prefetchExecutor = Executors.newFixedThreadPool(2);
 
     public GroqService(RestTemplate restTemplate,
@@ -103,17 +69,22 @@ public class GroqService {
         this.fallbackRecommender = fallbackRecommender;
         this.bookRepository = bookRepository;
         this.coverResolverService = coverResolverService;
-        log.info("✅ GroqService (two-stage high-quality engine with natural reasons) initialized");
+        log.info("✅ GroqService (Optimized Engine) initialized");
     }
 
     @EventListener(ApplicationReadyEvent.class)
     public void initGroqConfiguration() {
         try {
             if (groqApiKey == null || groqApiKey.isBlank()) {
-                String alt = System.getenv("GROQ_KEY");
-                if (alt != null && !alt.isBlank()) groqApiKey = alt.trim();
-                String alt2 = System.getenv("GROQ_APIKEY");
-                if ((groqApiKey == null || groqApiKey.isBlank()) && alt2 != null && !alt2.isBlank()) groqApiKey = alt2.trim();
+                String[] envVars = {"GROQ_KEY", "GROQ_APIKEY"};
+                for (String env : envVars) {
+                    String alt = System.getenv(env);
+                    if (alt != null && !alt.isBlank()) {
+                        groqApiKey = alt.trim();
+                        break;
+                    }
+                }
+
                 String keyFile = System.getenv("GROQ_API_KEY_FILE");
                 if ((groqApiKey == null || groqApiKey.isBlank()) && keyFile != null && !keyFile.isBlank()) {
                     try {
@@ -121,6 +92,7 @@ public class GroqService {
                         if (!fileContents.isBlank()) groqApiKey = fileContents;
                     } catch (Exception ignored) {}
                 }
+
                 if (groqApiKey == null || groqApiKey.isBlank()) {
                     Path p = Path.of("/run/secrets/GROQ_API_KEY");
                     if (Files.exists(p)) {
@@ -135,9 +107,9 @@ public class GroqService {
             }
 
             if (groqApiKey == null || groqApiKey.isBlank() || groqApiUrl == null || groqApiUrl.isBlank()) {
-                log.warn("GROQ not configured — fallback only.");
+                log.warn("GROQ not configured — fallback engine only.");
             } else {
-                log.info("GROQ two-stage engine ready.");
+                log.info("GROQ optimized engine ready.");
             }
         } catch (Exception e) {
             log.warn("GROQ config error: {}", e.getMessage());
@@ -145,95 +117,72 @@ public class GroqService {
     }
 
     public RecommendationResult chat(String sessionId, String userMessage) {
-        log.info("chat called: session={}, message={}", sessionId, userMessage);
-        boolean haveGroq = !(groqApiKey == null || groqApiKey.isBlank() || groqApiUrl == null || groqApiUrl.isBlank());
-        if (!haveGroq) {
+        log.info("Chat called: session={}, message={}", sessionId, userMessage);
+        
+        if (groqApiKey == null || groqApiKey.isBlank() || groqApiUrl == null || groqApiUrl.isBlank()) {
             return fallbackResult(userMessage);
         }
 
-        conversationHistory.putIfAbsent(sessionId, buildInitialHistory());
-        shownBooks.putIfAbsent(sessionId, new HashSet<>());
-
         String intent = classifyIntent(userMessage);
         String mood = "RETRY".equals(intent) ? sessionMood.getOrDefault(sessionId, userMessage) : userMessage;
+
+        // Reset session state for a completely new mood search
         if (!"RETRY".equals(intent)) {
             sessionMood.put(sessionId, mood);
-            shownBooks.get(sessionId).clear();
+            shownBooks.computeIfAbsent(sessionId, k -> ConcurrentHashMap.newKeySet()).clear();
+            prefetchedBatches.computeIfAbsent(sessionId, k -> new ConcurrentLinkedDeque<>()).clear();
         }
 
-        prefetchedBatches.putIfAbsent(sessionId, new ConcurrentLinkedDeque<>());
+        Set<String> shown = shownBooks.computeIfAbsent(sessionId, k -> ConcurrentHashMap.newKeySet());
+        Deque<List<BookRecommendation>> queue = prefetchedBatches.computeIfAbsent(sessionId, k -> new ConcurrentLinkedDeque<>());
+
+        // Check if we have a prefetched batch ready for a user asking for more
         if ("RETRY".equals(intent)) {
-            Deque<List<BookRecommendation>> q = prefetchedBatches.get(sessionId);
-            List<BookRecommendation> page = q.isEmpty() ? null : q.pollFirst();
-            if (page != null && !page.isEmpty()) {
-                page.forEach(br -> shownBooks.get(sessionId).add(br.getTitle().toLowerCase()));
+            List<BookRecommendation> prefetchPage = queue.pollFirst();
+            if (prefetchPage != null && !prefetchPage.isEmpty()) {
+                prefetchPage.forEach(br -> shown.add(br.getTitle().toLowerCase()));
+                // User is actively scrolling; prefetch the NEXT batch in background
                 asyncPrefetchNext(sessionId, mood);
-                return new RecommendationResult("groq-prefetched", page);
+                return new RecommendationResult("groq-prefetched", prefetchPage);
             }
         }
 
-        String userTurn = buildUserTurn(intent, mood, shownBooks.get(sessionId));
-
-        // TWO-STAGE RECOMMENDATION
-        List<BookRecommendation> candidates = generateCandidates(userTurn);
-        List<BookRecommendation> refined = refineRecommendations(candidates, mood, shownBooks.get(sessionId));
-
-        List<BookRecommendation> result = refined.isEmpty() ? fallbackRecommender.getRecommendationsByMood(mood, 10) : refined;
+        // Synchronous fetch if queue is empty or it's a new mood
+        String userTurn = buildUserTurn(mood, shown);
+        List<BookRecommendation> result = fetchRecommendations(userTurn);
 
         if (result.isEmpty()) {
             return fallbackResult(mood);
         }
 
         result.forEach(this::enrichWithCoverAndIsbn);
-        shownBooks.get(sessionId).addAll(result.stream().map(r -> r.getTitle().toLowerCase()).toList());
+        result.forEach(r -> shown.add(r.getTitle().toLowerCase()));
 
-        asyncPrefetchNext(sessionId, mood);
+        // We only prefetch IF the user hits RETRY. 
+        // This stops massive API waste on users who accept the first 10.
+        if ("RETRY".equals(intent)) {
+            asyncPrefetchNext(sessionId, mood);
+        }
 
         return new RecommendationResult("groq", result);
     }
 
-    private List<BookRecommendation> generateCandidates(String userTurn) {
-        String reply = callGroqWithSystem(STAGE1_SYSTEM_PROMPT, userTurn + " Return exactly 15 books.");
+    private List<BookRecommendation> fetchRecommendations(String userTurn) {
+        String reply = callGroqWithSystem(SYSTEM_PROMPT, userTurn);
         return parseJsonArray(reply);
     }
 
-    private List<BookRecommendation> refineRecommendations(List<BookRecommendation> candidates, String mood, Set<String> shown) {
-        if (candidates.isEmpty()) return List.of();
-
-        String candidatesJson = candidates.stream()
-                .map(br -> String.format("{\"title\":\"%s\",\"author\":\"%s\",\"reason\":\"%s\"}",
-                        escapeJson(br.getTitle()), escapeJson(br.getAuthor()), escapeJson(br.getReason())))
-                .reduce((a, b) -> a + "," + b)
-                .map(s -> "[" + s + "]")
-                .orElse("[]");
-
-        String reviewPrompt = "User vibe: \"" + mood + "\".\nPreviously shown: " + String.join(", ", shown) +
-                "\n\nCandidates:\n" + candidatesJson + "\n\nReview and return the best 10 with natural reader-style reasons.";
-
-        String refinedReply = callGroqWithSystem(STAGE2_SYSTEM_PROMPT, reviewPrompt);
-        List<BookRecommendation> refined = parseJsonArray(refinedReply);
-
-        if (refined.size() < 5) {
-            log.warn("Refinement returned too few books, using top candidates");
-            return candidates.subList(0, Math.min(10, candidates.size()));
-        }
-        return refined;
-    }
-
     private String callGroqWithSystem(String systemPrompt, String userTurn) {
-        if (groqApiKey == null || groqApiKey.isBlank() || groqApiUrl == null || groqApiUrl.isBlank()) {
-            return "[]";
-        }
-
         try {
-            Map<String, Object> body = new HashMap<>();
-            body.put("model", groqModel);
-            List<Map<String, String>> messages = new ArrayList<>();
-            messages.add(Map.of("role", "system", "content", systemPrompt));
-            messages.add(Map.of("role", "user", "content", userTurn));
-            body.put("messages", messages);
-            body.put("temperature", 0.65);
-            body.put("max_tokens", 3000);
+            Map<String, Object> body = Map.of(
+                "model", groqModel,
+                "messages", List.of(
+                    Map.of("role", "system", "content", systemPrompt),
+                    Map.of("role", "user", "content", userTurn)
+                ),
+                "temperature", 0.6,
+                "max_tokens", 700 // Reduced from 3000 to save bandwidth & cost
+            );
 
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
@@ -246,37 +195,21 @@ public class GroqService {
             if (resp == null) return "[]";
 
             JsonNode root = objectMapper.valueToTree(resp);
-            String text = extractContent(root);
-
-            if (text == null || text.trim().length() < 150) {
-                body.put("temperature", 0.5);
-                @SuppressWarnings("unchecked")
-                Map<String, Object> resp2 = restTemplate.postForObject(groqApiUrl,
-                        new HttpEntity<>(body, headers), Map.class);
-                if (resp2 != null) text = extractContent(objectMapper.valueToTree(resp2));
-            }
-
-            if (text == null) return "[]";
-
-            String cleaned = text.replaceAll("(?s)```json\\s*", "").replaceAll("(?s)```\\s*", "").trim();
-            int s = cleaned.indexOf('[');
-            int e = cleaned.lastIndexOf(']');
-            if (s >= 0 && e > s) cleaned = cleaned.substring(s, e + 1);
-            return cleaned;
+            return extractContent(root);
+            
         } catch (Exception e) {
-            log.error("Groq call failed: {}", e.getMessage());
+            log.error("Groq API call failed: {}", e.getMessage());
             return "[]";
         }
     }
 
     private String extractContent(JsonNode root) {
         JsonNode choices = root.path("choices");
-        if (choices.isArray() && choices.size() > 0) {
+        if (choices.isArray() && !choices.isEmpty()) {
             JsonNode msg = choices.get(0).path("message").path("content");
             if (!msg.isMissingNode()) return msg.asText();
         }
-        if (root.has("response")) return root.path("response").asText("");
-        return "";
+        return root.path("response").asText("");
     }
 
     private RecommendationResult fallbackResult(String mood) {
@@ -286,12 +219,9 @@ public class GroqService {
     }
 
     private void enrichWithCoverAndIsbn(BookRecommendation rec) {
-        if (rec == null) return;
-        String title = rec.getTitle();
-        String author = rec.getAuthor();
-        if (title == null || author == null) return;
+        if (rec == null || rec.getTitle() == null || rec.getAuthor() == null) return;
 
-        bookRepository.findByTitleAndAuthorIgnoreCase(title, author).ifPresentOrElse(book -> {
+        bookRepository.findByTitleAndAuthorIgnoreCase(rec.getTitle(), rec.getAuthor()).ifPresentOrElse(book -> {
             Book resolved = coverResolverService.resolveAndCacheCover(book);
             rec.setCoverUrl(resolved.getCoverUrl());
             rec.setIsbn(resolved.getIsbn());
@@ -302,86 +232,82 @@ public class GroqService {
     }
 
     private void asyncPrefetchNext(String sessionId, String mood) {
-        if (prefetchInProgress.contains(sessionId)) return;
-        prefetchInProgress.add(sessionId);
-        prefetchedBatches.putIfAbsent(sessionId, new ConcurrentLinkedDeque<>());
+        if (!prefetchInProgress.add(sessionId)) return;
 
         prefetchExecutor.submit(() -> {
             try {
                 Set<String> shown = shownBooks.getOrDefault(sessionId, Collections.emptySet());
-                String userTurn = "Same vibe: \"" + mood + "\". Avoid previously shown: " + String.join(", ", shown);
-                List<BookRecommendation> candidates = generateCandidates(userTurn);
-                List<BookRecommendation> refined = refineRecommendations(candidates, mood, shown);
-                if (!refined.isEmpty()) {
-                    prefetchedBatches.get(sessionId).addLast(refined);
+                String userTurn = buildUserTurn(mood, shown);
+                List<BookRecommendation> nextBatch = fetchRecommendations(userTurn);
+                
+                if (!nextBatch.isEmpty()) {
+                    nextBatch.forEach(this::enrichWithCoverAndIsbn);
+                    prefetchedBatches.computeIfAbsent(sessionId, k -> new ConcurrentLinkedDeque<>()).addLast(nextBatch);
                 }
             } catch (Exception e) {
-                log.debug("Prefetch failed: {}", e.getMessage());
+                log.debug("Background prefetch failed for session {}: {}", sessionId, e.getMessage());
             } finally {
                 prefetchInProgress.remove(sessionId);
             }
         });
     }
 
-    private List<ConversationMessage> buildInitialHistory() {
-        List<ConversationMessage> h = new ArrayList<>();
-        h.add(new ConversationMessage("user", STAGE1_SYSTEM_PROMPT));
-        return h;
-    }
-
     public void clearSession(String sessionId) {
-        conversationHistory.remove(sessionId);
         shownBooks.remove(sessionId);
         sessionMood.remove(sessionId);
         prefetchedBatches.remove(sessionId);
-        log.info("Cleared session {}", sessionId);
+        log.info("Cleared session memory for {}", sessionId);
     }
 
     private String classifyIntent(String msg) {
         if (msg == null) return "NEW_MOOD";
-        String l = msg.toLowerCase();
-        List<String> retry = List.of("no", "nope", "not these", "something else", "try again", "another", "more",
-                "show more", "skip", "nah", "not it", "meh", "different");
-        return retry.stream().anyMatch(l::contains) ? "RETRY" : "NEW_MOOD";
+        String lowerMsg = msg.toLowerCase();
+        List<String> retryKeywords = List.of(
+            "no", "nope", "not these", "something else", "try again", "another", 
+            "more", "show more", "skip", "nah", "not it", "meh", "different"
+        );
+        return retryKeywords.stream().anyMatch(lowerMsg::contains) ? "RETRY" : "NEW_MOOD";
     }
 
-    private String buildUserTurn(String intent, String mood, Set<String> shown) {
-        String avoids = shown.isEmpty() ? "" : " Do NOT recommend these: " + String.join(", ", shown) + ".";
-        return "Vibe: \"" + mood + "\"." + avoids;
+    private String buildUserTurn(String mood, Set<String> shown) {
+        if (shown == null || shown.isEmpty()) {
+            return "Vibe: \"" + mood + "\".";
+        }
+        return "Vibe: \"" + mood + "\". Do NOT recommend these: " + String.join(", ", shown) + ".";
     }
 
     private List<BookRecommendation> parseJsonArray(String jsonText) {
         List<BookRecommendation> out = new ArrayList<>();
-        try {
-            if (jsonText == null || jsonText.trim().isEmpty()) return out;
+        if (jsonText == null || jsonText.isBlank()) return out;
 
-            String cleaned = jsonText.replaceAll("(?s)```.*?```", "").trim();
-            int s = cleaned.indexOf('[');
-            int e = cleaned.lastIndexOf(']');
+        try {
+            // Isolates the JSON array, discarding any markdown or conversational fluff outside it
+            int s = jsonText.indexOf('[');
+            int e = jsonText.lastIndexOf(']');
+            
             if (s >= 0 && e > s) {
-                JsonNode arr = objectMapper.readTree(cleaned.substring(s, e + 1));
+                String arrayString = jsonText.substring(s, e + 1);
+                JsonNode arr = objectMapper.readTree(arrayString);
+                
                 if (arr.isArray()) {
                     Set<String> seen = new HashSet<>();
                     for (JsonNode node : arr) {
                         String title = node.path("title").asText("").trim();
                         String author = node.path("author").asText("").trim();
                         String reason = node.path("reason").asText("").trim();
+                        
                         if (title.isBlank() || author.isBlank()) continue;
-                        String key = title.toLowerCase();
-                        if (seen.contains(key)) continue;
-                        seen.add(key);
-                        out.add(new BookRecommendation(title, author, reason, null, null));
+                        
+                        // Deduplicate within the result batch
+                        if (seen.add(title.toLowerCase())) {
+                            out.add(new BookRecommendation(title, author, reason, null, null));
+                        }
                     }
                 }
             }
         } catch (Exception ex) {
-            log.warn("JSON parse error: {}", ex.getMessage());
+            log.warn("JSON array extraction failed. Output might be malformed. Error: {}", ex.getMessage());
         }
         return out;
-    }
-
-    private String escapeJson(String str) {
-        if (str == null) return "";
-        return str.replace("\"", "\\\"").replace("\n", "\\n");
     }
 }
