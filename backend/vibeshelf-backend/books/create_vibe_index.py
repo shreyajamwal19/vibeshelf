@@ -8,30 +8,42 @@ import time
 import numpy as np
 import requests
 import urllib.parse
+import logging
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(levelname)s - %(message)s'
+)
+logger = logging.getLogger(__name__)
 
 # --- Configuration ---
-INPUT_JSON = "book_descriptions.json"
-OUTPUT_INDEX_FILE = "book_vibe_index.pkl"
-MODEL_NAME = 'all-MiniLM-L6-v2'
+INPUT_JSON = os.getenv('INPUT_JSON', 'book_descriptions.json')
+OUTPUT_INDEX_FILE = os.getenv('OUTPUT_INDEX_FILE', 'book_vibe_index.pkl')
+MODEL_NAME = os.getenv('VIBE_MODEL_NAME', 'all-MiniLM-L6-v2')
 
 # --- Main execution ---
 if __name__ == "__main__":
-    print("--- Day 2: Starting AI Vibe Indexing ---")
+    logger.info("--- Starting AI Vibe Indexing ---")
     
     # 1. Load the extracted book description data
     try:
         with open(INPUT_JSON, 'r', encoding='utf-8') as f:
             book_database = json.load(f)
     except FileNotFoundError:
-        print(f"❌ ERROR: {INPUT_JSON} not found. Did you run Day 1 (process_descriptions.py) successfully?")
-        exit()
+        logger.error(f"ERROR: {INPUT_JSON} not found. Did you run process_descriptions.py?")
+        exit(1)
 
-    print(f"Loaded {len(book_database)} book descriptions.")
+    logger.info(f"Loaded {len(book_database)} book descriptions.")
 
     # 2. Load the AI Model
-    print(f"Loading AI model: {MODEL_NAME}...")
-    model = SentenceTransformer(MODEL_NAME)
-    print("Model loaded.")
+    logger.info(f"Loading AI model: {MODEL_NAME}...")
+    try:
+        model = SentenceTransformer(MODEL_NAME)
+        logger.info("Model loaded.")
+    except Exception as e:
+        logger.error(f"Failed to load model: {e}")
+        exit(1)
 
     # 3. Get all descriptions for embedding
     # Allow a SAMPLE_LIMIT env var for quick runs (e.g. SAMPLE_LIMIT=200)
@@ -41,13 +53,17 @@ if __name__ == "__main__":
     texts_to_embed = [item.get('description', '') for item in book_database]
     
     # 4. Generate Embeddings (This is the AI 'reading' part)
-    print("Generating embeddings for all descriptions. This may take a moment...")
+    logger.info("Generating embeddings for all descriptions. This may take a moment...")
     
     start_time = time.time()
-    embeddings = model.encode(texts_to_embed, show_progress_bar=True, batch_size=32)
+    try:
+        embeddings = model.encode(texts_to_embed, show_progress_bar=True, batch_size=32)
+    except Exception as e:
+        logger.error(f"Failed to generate embeddings: {e}")
+        exit(1)
     end_time = time.time()
     
-    print(f"Embeddings generated in {end_time - start_time:.2f} seconds.")
+    logger.info(f"Embeddings generated in {end_time - start_time:.2f} seconds.")
 
     # 5. Build the final index structure
     # 5. Enrich metadata with cover_url where possible (try existing keys, then prefer ISBN lookups)
@@ -248,9 +264,12 @@ if __name__ == "__main__":
     }
 
     # 6. Save the final index to a file
-    print(f"Saving the complete vibe index to {OUTPUT_INDEX_FILE}...")
-    with open(OUTPUT_INDEX_FILE, 'wb') as f:
-        pickle.dump(index_data, f)
-
-    print("\n✅ Success! Your 'Book Vibe Brain' (index) is created and saved.")
+    logger.info(f"Saving the complete vibe index to {OUTPUT_INDEX_FILE}...")
+    try:
+        with open(OUTPUT_INDEX_FILE, 'wb') as f:
+            pickle.dump(index_data, f)
+        logger.info("SUCCESS! Your 'Book Vibe Brain' (index) is created and saved.")
+    except Exception as e:
+        logger.error(f"Failed to save index: {e}")
+        exit(1)
    

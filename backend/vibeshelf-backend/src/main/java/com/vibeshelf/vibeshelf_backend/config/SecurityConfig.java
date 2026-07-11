@@ -78,6 +78,8 @@ public class SecurityConfig {
                     "/api/books/**", // ✅ Make all /api/books endpoints public (list, search, suggestions, etc.)
                     "/api/recommendations/**", // allow public access to recommender proxy endpoints
                     "/api/reviews/**",
+                    "/api/recommend", // ✅ AI recommender endpoint
+                    "/api/recommend/**", // ✅ AI recommender sub-endpoints (health, cache/clear)
                     "/api/v2/books/**", // Also allow v2 optimized endpoints
                     "/h2-console/**"
                 ).permitAll()

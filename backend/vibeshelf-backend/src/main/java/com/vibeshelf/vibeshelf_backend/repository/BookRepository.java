@@ -1,3 +1,4 @@
+
 package com.vibeshelf.vibeshelf_backend.repository;
 
 import com.vibeshelf.vibeshelf_backend.model.Book;
@@ -7,6 +8,10 @@ import org.springframework.stereotype.Repository;
 @Repository
 public interface BookRepository extends JpaRepository<Book, Long> {
     // Minimal repository: use JpaRepository's built-in methods (findAll(Pageable), findById, etc.)
+
+    // Find a book by title and author (case-insensitive, exact match)
+    @org.springframework.data.jpa.repository.Query("SELECT b FROM Book b WHERE LOWER(b.title) = LOWER(:title) AND LOWER(b.author) = LOWER(:author)")
+    java.util.Optional<Book> findByTitleAndAuthorIgnoreCase(@org.springframework.data.repository.query.Param("title") String title, @org.springframework.data.repository.query.Param("author") String author);
 
     // Case-insensitive search by title OR author using LIKE %q%.
     @org.springframework.data.jpa.repository.Query("SELECT b FROM Book b WHERE (LOWER(b.title) LIKE LOWER(CONCAT('%', :q, '%')) OR LOWER(b.author) LIKE LOWER(CONCAT('%', :q, '%'))) ")

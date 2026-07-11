@@ -21,7 +21,7 @@ import org.springframework.data.domain.PageRequest;
 
 
 @RestController
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000"})
+@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:3000", "http://localhost:5174"})
 public class RecommendationsController {
 
     private final BookRepository bookRepository;

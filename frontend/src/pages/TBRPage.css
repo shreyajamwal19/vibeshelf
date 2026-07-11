@@ -94,10 +94,6 @@
   border: 1px solid rgba(120,70,150,0.06);
 }
 .tbr-btn-danger { padding: 8px 12px; }
-/* small utility styles for header action buttons */
-.tbr-header-actions { display:flex; gap:8px; align-items:center; }
-.tbr-header-actions .tbr-btn { padding: 8px 10px; font-size: 13px; }
-.tbr-header-actions input[type="file"] { display:none }
 .tbr-btn-danger:hover { transform: translateY(-3px); box-shadow: 0 14px 34px rgba(150,80,160,0.14); }
 .tbr-btn-danger:active { transform: translateY(-1px); }
 .tbr-btn-danger:focus { outline: 3px solid rgba(150,80,160,0.12); outline-offset: 4px; }
@@ -275,18 +271,6 @@
   box-shadow: 0 0 0 3px rgba(138, 75, 224, 0.15);
 }
 
-/* Ensure filter input matches the vibe too */
-.tbr-container input {
-  border-radius: 12px !important;
-  border-color: rgba(138, 75, 224, 0.2) !important;
-  transition: all 0.2s;
-}
-.tbr-container input:focus {
-  outline: none;
-  border-color: #8a4be0 !important;
-  box-shadow: 0 0 0 3px rgba(138, 75, 224, 0.15);
-}
-
 /* small screens: tighten layout and make CTA full-width inside cards */
 @media (max-width: 640px) {
   .tbr-container { padding: 20px; }
@@ -295,28 +279,6 @@
   .tbr-cta { display:flex; flex-direction:column; gap:8px; }
   .tbr-btn { width:100%; }
 }
-
-/* Purple-themed filter input (overrides pink-ish defaults) */
-.tbr-container input[aria-label="Filter TBR"] {
-  background: linear-gradient(180deg, #fbf7ff 0%, #f6f0ff 100%);
-  border: 1px solid rgba(120,70,200,0.14);
-  color: #3b1650;
-  padding: 10px 12px;
-  border-radius: 12px;
-  box-shadow: inset 0 1px 0 rgba(255,255,255,0.7);
-}
-.tbr-container input[aria-label="Filter TBR"]::placeholder {
-  color: #8b4db2; /* lavender placeholder - not pink */
-  opacity: 0.95;
-}
-.tbr-container input[aria-label="Filter TBR"]:focus {
-  outline: none;
-  box-shadow: 0 6px 26px rgba(120,60,200,0.12), 0 0 0 4px rgba(145,85,230,0.12);
-  border-color: rgba(110,50,200,0.28);
-}
-
-/* Make the Clear link sit nicely next to the filtered input */
-.tbr-container .text-sm.text-gray-500:hover { color: #5a1e9a; }
 
 /* Empty state CTA */
 .tbr-container > p.text-center a.explore-cta {
@@ -496,9 +458,8 @@ html.dark .aesthetic-toast-close:hover {
   background: rgba(255,255,255,0.1) !important;
 }
 
-/* Inputs / Selects in dark mode */
-html.dark .tbr-sort-select,
-html.dark .tbr-container input {
+/* Selects in dark mode */
+html.dark .tbr-sort-select {
   background-color: #374151 !important;
   border-color: #4b5563 !important;
   color: #f3f4f6 !important;

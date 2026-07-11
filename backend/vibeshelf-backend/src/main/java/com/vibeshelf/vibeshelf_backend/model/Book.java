@@ -29,6 +29,13 @@ public class Book {
     // DB column name is `image`
     @Column(name = "image", columnDefinition = "TEXT")
     private String image;
+
+    @Column(name = "cover_url", columnDefinition = "TEXT")
+    private String coverUrl;
+
+    @Column(name = "isbn", columnDefinition = "TEXT")
+    private String isbn;
+
     @Column(columnDefinition = "TEXT")
     private String genre;
     // No other fields or accessors: this entity maps EXACTLY to `books_canonical`.

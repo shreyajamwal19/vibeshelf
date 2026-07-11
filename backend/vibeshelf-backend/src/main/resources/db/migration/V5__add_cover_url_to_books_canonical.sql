@@ -1,0 +1,1 @@
+ALTER TABLE books_canonical ADD COLUMN cover_url TEXT;

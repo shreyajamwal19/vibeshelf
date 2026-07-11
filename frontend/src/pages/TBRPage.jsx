@@ -9,7 +9,6 @@ function TBRPage() {
   const [removingId, setRemovingId] = useState(null);
   const [lastRemoved, setLastRemoved] = useState(null);
   const [sortMode, setSortMode] = useState('added'); // 'added' | 'title' | 'author'
-  const [filterQuery, setFilterQuery] = useState('');
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -82,11 +81,8 @@ function TBRPage() {
     const copy = [...tbrBooks];
     if (sortMode === 'title') return copy.sort((a,b) => String((a.title||'')).localeCompare(String((b.title||''))));
     if (sortMode === 'author') return copy.sort((a,b) => String((a.author||'')).localeCompare(String((b.author||''))));
-    // apply filter
-    const q = (filterQuery || '').toLowerCase().trim();
-    if (!q) return copy;
-    return copy.filter(b => ((b.title||'') + ' ' + (b.author||'')).toLowerCase().includes(q));
-  }, [tbrBooks, sortMode, filterQuery]);
+    return copy;
+  }, [tbrBooks, sortMode]);
 
   return (
     <div className="min-h-screen tbr-root p-8 font-sans transition-colors">
@@ -134,15 +130,6 @@ function TBRPage() {
                     <option value="author">Author (A-Z)</option>
                   </select>
                 </div>
-              </div>
-            </div>
-
-            <div className="mb-6 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3">
-                <input aria-label="Filter TBR" placeholder="Filter by title or author" value={filterQuery} onChange={(e) => setFilterQuery(e.target.value)} className="border rounded-md px-3 py-2 text-sm" />
-                <button onClick={() => setFilterQuery('')} className="text-sm text-gray-500 hover:underline">Clear</button>
-              </div>
-              <div className="flex items-center gap-3">
                 <button onClick={() => {
                   const ok = window.confirm('Clear all books from your TBR? This cannot be undone.');
                   if (!ok) return;
@@ -151,8 +138,6 @@ function TBRPage() {
                   window.dispatchEvent(new Event('storage'));
                   showToast('Cleared your TBR');
                 }} className="tbr-btn tbr-btn-danger" title="Clear all">Clear all</button>
-
-                {/* Export / Import removed per request - kept only Clear all */}
               </div>
             </div>
 
@@ -194,7 +179,7 @@ function TBRPage() {
                 </div>
       );
       })}
-          </div>
+            </div>
         </>
         )}
       </div>

@@ -4,11 +4,9 @@ import './Explore.css';
 import BookshelfGrid from '../components/BookshelfGrid.jsx';
 import { useAuth } from "../auth/AuthContext.jsx";
 import useBooksApi from '../hooks/useBooksApi.js';
+import useBookAIContext from '../hooks/useBookAIContext.js';
 
-// Inline GenreDropdown component (no external deps). Props:
-// - available: array of genre strings
-// - selected: array of selected genre strings
-// - onChange: function(nextSelectedArray)
+// Inline GenreDropdown component
 function GenreDropdown({ available = [], selected = [], onChange, isFiltering = false }) {
     const [open, setOpen] = React.useState(false);
     const [filter, setFilter] = React.useState('');
@@ -79,7 +77,6 @@ function GenreDropdown({ available = [], selected = [], onChange, isFiltering = 
                     <div className="flex items-center gap-3 mb-3">
                         <input ref={searchRef} value={filter} onChange={(e) => setFilter(e.target.value)} placeholder="Filter genres..." className="genre-search px-3 py-2 rounded-2xl flex-1 border border-rose-50 focus:outline-none" />
 
-                        {/* Right-side controls: smaller 'Select all' button (selects all available genres) + clearer Clear control */}
                         <div className="flex items-center gap-2">
                             <button
                                 type="button"
@@ -88,10 +85,8 @@ function GenreDropdown({ available = [], selected = [], onChange, isFiltering = 
                                     if (!all.length) return;
                                     const allSelected = all.every(g => selected.includes(g));
                                     if (allSelected) {
-                                        // deselect all available
                                         onChange((selected || []).filter(s => !all.includes(s)));
                                     } else {
-                                        // select all available, preserving any others
                                         const next = Array.from(new Set([...(selected || []), ...all]));
                                         onChange(next);
                                     }
@@ -114,7 +109,7 @@ function GenreDropdown({ available = [], selected = [], onChange, isFiltering = 
                             const active = selected.includes(g);
                             return (
                                 <label key={g} role="option" aria-selected={active} className={`genre-chip w-full relative flex items-center gap-3 px-3 py-3 rounded-lg transition transform ${active ? 'selected' : ''}`}>
-                                    <input type="checkbox" className="native-checkbox" checked={active} onChange={() => handleToggleGenre(g)} aria-label={`Select genre ${g}`} />
+                                    <input id={`genre-${g}`} name={`genre-${g}`} type="checkbox" className="native-checkbox" checked={active} onChange={() => handleToggleGenre(g)} aria-label={`Select genre ${g}`} />
 
                                     <span className="checkbox-box" aria-hidden>
                                         <svg className="h-4 w-4" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M4 10l3 3 8-8" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
@@ -155,17 +150,13 @@ function Explore() {
     const { loading: authLoading } = useAuth();
     const location = useLocation();
     const navigate = useNavigate();
-    // Single grid Explore (loads all books)
     const [query, setQuery] = useState('');
     const searchTimerRef = useRef(null);
     const [recentSearches, setRecentSearches] = useState([]);
     const [showSuggestions, setShowSuggestions] = useState(false);
     const [suggestionIndex, setSuggestionIndex] = useState(-1);
     const [searchActive, setSearchActive] = useState(false);
-    // remember the page the user was on before they started a search so Back returns there
     const priorPageRef = useRef(null);
-    // stable ref to current page to avoid stale closures in callbacks
-    // Avoid referencing `page` before it's initialized — start at 1 and keep in-sync below
     const pageRef = useRef(1);
 
     const {
@@ -177,9 +168,9 @@ function Explore() {
         loading,
         error,
         search,
-    lastFetch,
-    isFiltering,
-    isRateLimited,
+        lastFetch,
+        isFiltering,
+        isRateLimited,
         loadPage,
         goToPage,
         nextPage,
@@ -188,38 +179,32 @@ function Explore() {
         hasMore
     } = useBooksApi({ initialPage: 1, pageSize: 48, prefetchPages: 2, maxConcurrent: 3 });
     
+    const { setAllBooks } = useBookAIContext();
+    useEffect(() => {
+      if (books && books.length > 0) {
+        setAllBooks(books);
+      }
+    }, [books, setAllBooks]);
 
-    // keep pageRef in sync with the latest `page` value (declare after `page` is initialized)
     useEffect(() => { pageRef.current = page; }, [page]);
-    
 
-    // Track recent fetch hashes so we can detect when the backend returns identical pages
     const [serverWarning, setServerWarning] = useState(false);
     const fetchHistoryRef = useRef(new Map());
-    const [lastTrace, setLastTrace] = useState(null);
     const [selectedGenres, setSelectedGenres] = useState([]);
-    // local override store for search/genre responses so UI can render results
     const [overrideResults, setOverrideResults] = useState(null);
     const [globalGenres, setGlobalGenres] = useState([]);
-    // No local override — useBooksApi is single source of truth
     const genreTimerRef = useRef(null);
-    // removed bulk "load all" related counters (pagination-only UX)
 
     useEffect(() => {
         if (!lastFetch || !lastFetch.ts) return;
-        const { page: p, hash, items } = lastFetch;
-        setLastTrace({ page: p, items, hash });
+        const { page: p, hash } = lastFetch;
         if (hash == null) return;
-        // record hash for this page
         fetchHistoryRef.current.set(p, hash);
-
-        // detect if two different pages have the same hash (simple server bug detector)
         const hashes = new Map();
         for (const [pg, h] of fetchHistoryRef.current.entries()) {
             if (!hashes.has(h)) hashes.set(h, []);
             hashes.get(h).push(pg);
         }
-        // if any hash is associated with >1 different page, warn
         let dupFound = false;
         for (const [h, pages] of hashes.entries()) {
             if (pages.length > 1) { dupFound = true; break; }
@@ -227,33 +212,27 @@ function Explore() {
         setServerWarning(dupFound);
     }, [lastFetch]);
 
-    // helper: normalize genre field from a book item into an array of strings
     const parseGenres = useCallback((raw) => {
         if (!raw) return [];
         if (Array.isArray(raw)) return raw.map(x => String(x).trim()).filter(Boolean);
         if (typeof raw === 'string') {
-            // some backends return "['Fiction','Short Stories']" or "Fiction, Short Stories"
             const s = raw.trim();
             if (s.startsWith('[') && s.endsWith(']')) {
                 try {
-                    // try JSON parse after replacing single quotes
                     const json = s.replace(/'/g, '"');
                     const parsed = JSON.parse(json);
                     if (Array.isArray(parsed)) return parsed.map(x => String(x).trim()).filter(Boolean);
-                } catch (e) { /* fall through */ }
+                } catch (e) { }
             }
-            // fallback: split on commas
             return s.split(',').map(x => x.trim()).filter(Boolean);
         }
         return [];
     }, []);
 
-    // curated genre seed (covers common genres so dropdown isn't empty)
     const CURATED_GENRES = [
         'Fiction','Nonfiction','Mystery','Thriller','Romance','Romantic Comedy','Historical','Fantasy','Science Fiction','Horror','Memoir','Biography','Self-Help','Poetry','Young Adult','Children','Graphic Novel','Humor','Satire','Adventure','Classic','Contemporary','Crime','Cozy Mystery','Paranormal','Urban Fantasy','Magical Realism','Literary Fiction','Short Stories','Essays','Parenting','Health','Religion','Philosophy','Travel','Cooking','Art','Music','Business','Technology','History','Politics','Science','True Crime'
     ];
 
-    // derive available genres from the current page of books
     const availableGenres = React.useMemo(() => {
         const freq = new Map();
         for (const b of books || []) {
@@ -264,18 +243,15 @@ function Explore() {
                 freq.set(key, (freq.get(key) || 0) + 1);
             }
         }
-        // sort by frequency desc and return top 20
         return Array.from(freq.entries()).sort((a,b) => b[1]-a[1]).slice(0,20).map(x => x[0]);
     }, [books, parseGenres]);
 
-    // build the final genre list shown in the dropdown: curated seeds + global list + page-derived
     const allGenreOptions = React.useMemo(() => {
         const combined = [
             ...CURATED_GENRES,
             ...(globalGenres || []),
             ...(availableGenres || [])
         ].map(x => String(x).trim()).filter(Boolean);
-        // dedupe while preserving order
         const seen = new Set();
         const out = [];
         for (const g of combined) {
@@ -287,15 +263,11 @@ function Explore() {
         return out.slice(0, 200);
     }, [globalGenres, availableGenres]);
 
-    // Try to fetch a server-provided genre list; if unavailable, sample the
-    // first few pages to build a weighted list. This keeps the UI stable and
-    // avoids scanning the entire dataset.
     useEffect(() => {
         let cancelled = false;
         const loadGlobal = async () => {
             try {
                 const freq = new Map();
-                // sample first 3 pages via the hook's loader; restore current page afterwards
                 const currentPage = page;
                 for (let p = 1; p <= 3; p += 1) {
                     try {
@@ -308,44 +280,32 @@ function Explore() {
                                 freq.set(g, (freq.get(g) || 0) + 1);
                             }
                         }
-                    } catch (e) {
-                        // ignore individual page failures
-                    }
+                    } catch (e) { }
                     if (cancelled) return;
                 }
-                // restore the page the user was on
-                try { await loadPage({ page: currentPage, q: lastFetch?.q ?? null, filters: null }); } catch (e) { /* ignore */ }
+                try { await loadPage({ page: currentPage, q: lastFetch?.q ?? null, filters: null }); } catch (e) { }
                 if (cancelled) return;
                 const sorted = Array.from(freq.entries()).sort((a,b) => b[1]-a[1]).slice(0,50).map(x => x[0]);
                 setGlobalGenres(sorted);
-            } catch (e) {
-                // ignore failures; UI will use page-derived genres
-            }
+            } catch (e) { }
         };
         loadGlobal();
         return () => { cancelled = true; };
     }, [parseGenres, loadPage]);
 
-    // When selectedGenres changes, fetch from backend directly and use response.data
     useEffect(() => {
         let mounted = true;
         (async () => {
             try {
                 const genreParam = (selectedGenres && selectedGenres.length > 0) ? selectedGenres.join(',') : undefined;
                 const filters = (selectedGenres && selectedGenres.length > 0) ? { genres: selectedGenres, genre: genreParam } : null;
-                // Use the hook's search function so useBooksApi remains the single source of truth
                 const resp = await search(query, filters);
-                // capture the returned result so Explore can render the items even if the
-                // hook populates a different internal array or clears `books` temporarily
-                setOverrideResults(resp || null);
-            } catch (e) {
-                try { console.error('[Explore] genre search failed', e); } catch (ee) {}
-            }
+                if (mounted) setOverrideResults(resp || null);
+            } catch (e) { }
         })();
         return () => { mounted = false; };
     }, [selectedGenres]);
 
-    // Restore Explore state when navigated back from BookDetail
     useEffect(() => {
         try {
             if (location && location.state && location.state.fromExplore === true) {
@@ -353,10 +313,8 @@ function Explore() {
                 const p = location.state.page;
                 if (Array.isArray(s)) setSelectedGenres(s);
                 if (typeof p === 'number' && p > 0) goToPage(p);
-                // do not forcibly refetch here; the hook will provide the cached page
             }
-        } catch (e) { /* ignore */ }
-    // run on mount and when location changes
+        } catch (e) { }
     }, [location]);
 
     const handleBookLinkClick = useCallback((e) => {
@@ -373,56 +331,58 @@ function Explore() {
                     const to = url.pathname + url.search;
                     navigate(to, { state: { fromExplore: true, selectedGenres, page } });
                 } catch (err) {
-                    // fallback: navigate using the raw href
                     navigate(href, { state: { fromExplore: true, selectedGenres, page } });
                 }
             }
-        } catch (err) { /* ignore */ }
+        } catch (err) { }
     }, [navigate, selectedGenres, page]);
 
     const onQueryChange = useCallback((val) => {
         setQuery(val);
         setShowSuggestions(true);
-        // mark that user is actively searching if they type something non-empty
         if (String(val || '').trim().length > 0) {
             if (!searchActive) {
-                // record the page we came from to return to it later
                 priorPageRef.current = pageRef.current || page;
             }
             setSearchActive(true);
         }
         if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
         searchTimerRef.current = setTimeout(() => {
-            // capture search results so the UI can render them directly
             Promise.resolve(search(val)).then((resp) => setOverrideResults(resp || null)).catch(() => {});
-            // record recent search
-            try {
-                const stored = JSON.parse(localStorage.getItem('vibeshelf-recent-searches') || '[]');
-                const next = [val, ...stored.filter(s => s !== val)].slice(0, 8);
-                localStorage.setItem('vibeshelf-recent-searches', JSON.stringify(next));
-                setRecentSearches(next);
-            } catch (e) { /* ignore */ }
         }, 350);
     }, [search]);
 
-    // immediate search when user presses Enter
+    const saveRecentSearch = useCallback((term) => {
+        const trimmed = String(term || '').trim();
+        if (!trimmed) return;
+        try {
+            const stored = JSON.parse(localStorage.getItem('vibeshelf-recent-searches') || '[]');
+            const next = [trimmed, ...stored.filter(s => s !== trimmed)].slice(0, 8);
+            localStorage.setItem('vibeshelf-recent-searches', JSON.stringify(next));
+            setRecentSearches(next);
+        } catch (e) { }
+    }, []);
+
+    const removeRecentSearch = useCallback((term) => {
+        try {
+            const stored = JSON.parse(localStorage.getItem('vibeshelf-recent-searches') || '[]');
+            const next = stored.filter(s => s !== term);
+            localStorage.setItem('vibeshelf-recent-searches', JSON.stringify(next));
+            setRecentSearches(next);
+        } catch (e) { }
+    }, []);
+
     const handleSearchSubmit = useCallback((e) => {
         if (e && e.key && e.key !== 'Enter') return;
         if (searchTimerRef.current) { clearTimeout(searchTimerRef.current); searchTimerRef.current = null; }
-        // capture search results so Explore can render the returned items
         Promise.resolve(search(query)).then((resp) => setOverrideResults(resp || null)).catch(() => {});
         if (String(query || '').trim().length > 0) {
             if (!searchActive) priorPageRef.current = pageRef.current || page;
             setSearchActive(true);
         }
         setShowSuggestions(false);
-        try {
-            const stored = JSON.parse(localStorage.getItem('vibeshelf-recent-searches') || '[]');
-            const next = [query, ...stored.filter(s => s !== query)].slice(0, 8);
-            localStorage.setItem('vibeshelf-recent-searches', JSON.stringify(next));
-            setRecentSearches(next);
-        } catch (e) {}
-    }, [query, search]);
+        saveRecentSearch(query);
+    }, [query, search, saveRecentSearch]);
 
     const handleClearSearch = useCallback(() => {
         setQuery('');
@@ -433,7 +393,6 @@ function Explore() {
         search('');
     }, [search]);
 
-    // Undo the user's search input and restore the prior page's unfiltered content
     const handleUndoSearch = useCallback(() => {
         setQuery('');
         setShowSuggestions(false);
@@ -441,11 +400,9 @@ function Explore() {
         setOverrideResults(null);
         try {
             const target = priorPageRef.current || pageRef.current || page || 1;
-            // set the page state then explicitly load the unfiltered page content
             goToPage(target);
-            // ensure we fetch the unfiltered version of that page (q=null)
-            loadPage({ page: target, q: null, filters: null }).catch(() => { /* ignore */ });
-        } catch (e) { /* ignore if not available */ }
+            loadPage({ page: target, q: null, filters: null }).catch(() => { });
+        } catch (e) { }
         priorPageRef.current = null;
     }, [goToPage, loadPage, page]);
 
@@ -456,14 +413,12 @@ function Explore() {
         } catch (e) { setRecentSearches([]); }
     }, []);
 
-    // cleanup genre debounce timer on unmount
     useEffect(() => {
         return () => {
             if (genreTimerRef.current) clearTimeout(genreTimerRef.current);
         };
     }, []);
 
-    // suggestions from local recent searches + titles/authors in current page
     const suggestions = React.useMemo(() => {
         const q = (query || '').toLowerCase().trim();
         const fromBooks = [];
@@ -477,24 +432,27 @@ function Explore() {
                 if (fromBooks.length >= 6) break;
             }
         }
-        const combined = [...recentSearches.filter(s => s && (!q || s.toLowerCase().includes(q))), ...fromBooks];
-        return Array.from(new Set(combined)).slice(0, 8);
+        const recentMatches = recentSearches.filter(s => s && (!q || s.toLowerCase().includes(q)));
+        const combined = [...recentMatches, ...fromBooks];
+        const unique = Array.from(new Set(combined)).slice(0, 8);
+        return unique.map((text) => ({
+            text,
+            isRecent: recentMatches.includes(text)
+        }));
     }, [query, recentSearches, books]);
 
-    // Build richer suggestion items (thumbnail when available)
     const suggestionItems = React.useMemo(() => {
         const q = (query || '').toLowerCase().trim();
-        return suggestions.map(s => {
+        return suggestions.map(({ text, isRecent }) => {
             const match = (books || []).find(b => {
                 const t = (b.title || b.id || '').toString();
-                return t.toLowerCase() === (s || '').toLowerCase() || (s && (t || '').toLowerCase().includes((s || '').toLowerCase()));
+                return t.toLowerCase() === (text || '').toLowerCase() || (text && (t || '').toLowerCase().includes((text || '').toLowerCase()));
             });
             const thumb = match ? (match.image_url || match.imageUrl || match.thumbnail || null) : null;
-            return { text: s, thumb };
+            return { text, thumb, isRecent };
         });
     }, [suggestions, books, query]);
 
-    // highlight matching substring in suggestion text for visual emphasis
     const highlightText = useCallback((text, q) => {
         if (!q) return text;
         const lower = text.toLowerCase();
@@ -521,41 +479,6 @@ function Explore() {
         return i;
     };
 
-    const handleInputKeyDown = (e) => {
-        if (e.key === 'Escape') {
-            e.preventDefault();
-            handleUndoSearch();
-            return;
-        }
-        if (e.key === 'ArrowDown') {
-            e.preventDefault();
-            setShowSuggestions(true);
-            setSuggestionIndex(i => clampIndex(i + 1 < 0 ? 0 : i + 1));
-            return;
-        }
-        if (e.key === 'ArrowUp') {
-            e.preventDefault();
-            setSuggestionIndex(i => clampIndex(i - 1));
-            return;
-        }
-        if (e.key === 'Enter') {
-            // If a suggestion is highlighted, choose it instead of raw query
-            if (suggestionIndex >= 0 && suggestionItems[suggestionIndex]) {
-                e.preventDefault();
-                const s = suggestionItems[suggestionIndex].text;
-                setQuery(s);
-                setShowSuggestions(false);
-                setSuggestionIndex(-1);
-                if (!searchActive) priorPageRef.current = pageRef.current || page;
-                setSearchActive(true);
-                search(s);
-                return;
-            }
-            // otherwise fall back to the normal submit handler
-            handleSearchSubmit(e);
-        }
-    };
-
     const startIndex = (page - 1) * pageSize + 1;
     const endIndex = Math.min(page * pageSize, total || 0);
     const totalPages = Math.max(1, Math.ceil((total || 0) / pageSize));
@@ -567,8 +490,8 @@ function Explore() {
     return (
         <div className="min-h-screen premium-pink-bg transition-colors relative">
             <div className="premium-header-decor" />
-            <div className="container mx-auto px-6 py-10">
-                <div className="text-center mb-8">
+            <div className="container mx-auto px-6 pt-12 pb-4 flex flex-col">
+                <div className="text-center mb-4">
                         <h1 className="text-5xl font-extrabold mb-2 tracking-tight bg-gradient-to-r from-pink-200 via-pink-400 to-pink-700 bg-clip-text text-transparent drop-shadow-md">Explore Books ✨</h1>
                     <p className="text-rose-600 text-sm mb-2">{(total || 0) > 0 ? `${(total || 0).toLocaleString()} books available • Showing ${startIndex}-${endIndex}` : 'Preparing your library...'}</p>
                     <div className="flex items-center justify-center gap-2 mb-2">
@@ -585,10 +508,8 @@ function Explore() {
                     {loading && <div className="mt-3 flex items-center justify-center gap-2"><div className="animate-spin rounded-full h-4 w-4 border-b-2 border-rose-500"></div><span className="text-sm text-gray-500">Loading page {page}...</span></div>}
                     {error && <div className="mt-3 text-sm text-red-600 bg-red-50 dark:bg-red-900/20 rounded-lg p-3">🚨 Error: {String(error)} <button onClick={refresh} className="ml-2 underline">Retry</button></div>}
                 </div>
-
-                <div className="flex flex-col lg:flex-row justify-between items-center gap-4 mb-8">
+                <div className="flex flex-col lg:flex-row justify-between items-center gap-4 mb-4">
                     <div className="flex-1 max-w-xl w-full relative">
-                        {/* Back button removed: Clear search pill handles undo/clear actions */}
                         <div className="relative">
                             <input
                                 type="text"
@@ -597,7 +518,6 @@ function Explore() {
                                     value={query}
                                     onChange={(e) => onQueryChange(e.target.value)}
                                     onKeyDown={(e) => {
-                                        // Allow Enter to submit and Escape to clear/return to Explore
                                         if (e.key === 'Escape') {
                                             e.preventDefault();
                                             handleUndoSearch();
@@ -617,11 +537,9 @@ function Explore() {
                                 </svg>
                             </span>
                             <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
-                                {/* Removed the arrow-like search button for a cleaner UI.
-                                    Provide a more interactive clear button instead. */}
                                 {query && (
                                     <button
-                                        onMouseDown={(e) => { e.preventDefault(); /* prevent blur from input */ }}
+                                        onMouseDown={(e) => { e.preventDefault(); }}
                                         onClick={handleClearSearch}
                                         aria-label="Clear search"
                                         title="Clear search"
@@ -635,7 +553,6 @@ function Explore() {
                             </div>
                         </div>
 
-                        {/* Suggestion dropdown - richer UI with thumbnails, highlighted matches & keyboard selection */}
                         {showSuggestions && (suggestionItems || []).length > 0 && (
                             <div className="absolute mt-2 w-full bg-white border border-rose-100 rounded-xl shadow-2xl z-30 overflow-hidden transform-gpu animate-fade-in search-suggestions">
                                 <div className="px-4 py-2 bg-gradient-to-r from-pink-50 to-white/80 border-b border-rose-50 flex items-center justify-between">
@@ -646,8 +563,10 @@ function Explore() {
                                     {(suggestionItems || []).map((it, idx) => {
                                         const isActive = suggestionIndex === idx;
                                         return (
-                                            <button
+                                            <div
                                                 key={`sugg-${idx}`}
+                                                role="option"
+                                                aria-selected={isActive}
                                                 onMouseDown={(e) => {
                                                     e.preventDefault();
                                                     const s = it.text;
@@ -655,11 +574,12 @@ function Explore() {
                                                     if (!searchActive) priorPageRef.current = pageRef.current || page;
                                                     setSearchActive(true);
                                                     search(s);
+                                                    saveRecentSearch(s);
                                                     setShowSuggestions(false);
                                                     setSuggestionIndex(-1);
                                                 }}
                                                 onMouseEnter={() => setSuggestionIndex(idx)}
-                                                className={`w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${isActive ? 'bg-rose-50' : 'hover:bg-rose-50'}`}
+                                                className={`suggestion-row w-full text-left px-4 py-3 flex items-center gap-3 transition-colors ${isActive ? 'bg-rose-50' : 'hover:bg-rose-50'}`}
                                             >
                                                 <div className="flex-shrink-0 h-10 w-10 rounded-md overflow-hidden bg-pink-50 border border-rose-100">
                                                     {it.thumb ? (
@@ -674,21 +594,35 @@ function Explore() {
                                                     </div>
                                                     <div className="text-xs text-gray-400 mt-0.5">{it.thumb ? 'Book result' : 'Recent'}</div>
                                                 </div>
-                                                <div className="flex-shrink-0">
+                                                <div className="flex-shrink-0 flex items-center gap-2">
+                                                    {it.isRecent && (
+                                                        <button
+                                                            type="button"
+                                                            onMouseDown={(e) => {
+                                                                e.preventDefault();
+                                                                e.stopPropagation();
+                                                                removeRecentSearch(it.text);
+                                                            }}
+                                                            onClick={(e) => e.stopPropagation()}
+                                                            aria-label={`Remove ${it.text} from recent searches`}
+                                                            title="Remove from recent"
+                                                            className="suggestion-remove"
+                                                        >
+                                                            ×
+                                                        </button>
+                                                    )}
                                                     {isActive ? <svg className="h-5 w-5 text-rose-500" viewBox="0 0 20 20" fill="currentColor"><path d="M6.293 9.293a1 1 0 011.414 0L10 11.586l2.293-2.293a1 1 0 111.414 1.414l-3 3a1 1 0 01-1.414 0l-3-3a1 1 0 010-1.414z"/></svg> : null}
                                                 </div>
-                                            </button>
+                                            </div>
                                         );
                                     })}
                                 </div>
-                                
                             </div>
                         )}
                     </div>
                     <div className="flex gap-2 mt-4 lg:mt-0 items-center">
                         <button
                             onClick={() => {
-                                // If the user is actively searching, undo to the prior page; otherwise just clear the input
                                 if (searchActive) handleUndoSearch(); else handleClearSearch();
                             }}
                             disabled={loading}
@@ -699,18 +633,11 @@ function Explore() {
                         </button>
 
                         <button onClick={refresh} disabled={loading} className="bg-gradient-to-r from-pink-500 to-pink-600 hover:from-pink-600 hover:to-pink-700 text-white px-4 py-2 rounded-full shadow-lg interactive-cta">{loading ? 'Loading...' : 'Refresh'}</button>
-                        <div className="hidden lg:flex items-center gap-2">
-                            <div className="sparkle" style={{animationDelay: '0s'}} />
-                            <div className="sparkle" style={{animationDelay: '0.6s'}} />
-                            <div className="sparkle" style={{animationDelay: '1.2s'}} />
-                        </div>
                     </div>
                 </div>
-                {/* Genre filter dropdown */}
-                <div className="mb-4 relative" ref={(el) => { /* keep block for layout */ }}>
+                <div className="mb-2 relative">
                     <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                            <div className="sr-only">Filter by genre</div>
                             {isFiltering && (
                                 <div className="flex items-center gap-2 text-sm text-gray-500">
                                     <div className="animate-spin rounded-full h-3 w-3 border-b-2 border-rose-500" />
@@ -729,12 +656,10 @@ function Explore() {
                         available={allGenreOptions}
                         selected={selectedGenres}
                         onChange={(next) => {
-                            // debounce genre selection to avoid firing many rapid requests
                             setSelectedGenres(next);
                             if (genreTimerRef.current) clearTimeout(genreTimerRef.current);
                             genreTimerRef.current = setTimeout(() => {
                                 const filters = (next && next.length) ? { genres: next, genre: next.join(',') } : null;
-                                // if we're currently rate-limited, wait a bit longer
                                 if (isRateLimited) {
                                     setTimeout(() => search(query, filters), 1000);
                                 } else {
@@ -744,107 +669,114 @@ function Explore() {
                         }}
                         isFiltering={isFiltering}
                     />
-
-                    {/* Applied filter summary removed per user preference */}
-                    {selectedGenres.length > 0 && (total === 0) && (
-                        <div className="mt-2 text-sm text-red-600">No books found for the selected genre(s). Try clearing filters or check server logs.</div>
-                    )}
                 </div>
+                
+                {(() => {
+                    const searchModeActive = (selectedGenres && selectedGenres.length > 0) || searchActive;
+                    const displayedBooks = searchModeActive
+                        ? (overrideResults && Array.isArray(overrideResults.items) ? overrideResults.items : (typeof results !== 'undefined' ? results : books))
+                        : books;
+                    
+                    if (displayedBooks && displayedBooks.length === 0 && !loading) {
+                        return (
+                            <div className="flex flex-col items-center justify-center pt-2 pb-2 animate-in fade-in slide-in-from-bottom-4 duration-700">
+                                <img 
+                                    src="https://imgs.search.brave.com/rUbb66cOBC-Pp_WPR2HpROIfiUKGWR__Ktmseo0kzXY/rs:fit:860:0:0:0/g:ce/aHR0cHM6Ly9pLnBp/bmltZy5jb20vb3Jp/Z2luYWxzLzFlLzlh/LzQzLzFlOWE0MzNj/ZDI0YWZmMGJiOWM1/MzM0MTRhNWIxNjMz/LmpwZw" 
+                                    alt="No results found"
+                                    className="w-[180px] rounded-3xl shadow-xl floating-img"
+                                />
+                                <h2 className="text-xl font-bold text-rose-800 mt-4 mb-1"> No books found</h2>
+                                <p className="text-rose-500 text-center max-w-sm mb-4">
+                                    We searched every shelf but couldn't find a match. 
+                                    <br/>Try another title, author, genre or mood.
+                                </p>
+                                <button 
+                                    onClick={() => { setSelectedGenres([]); handleClearSearch(); }}
+                                    className="px-8 py-3 bg-pink-100 hover:bg-pink-200 text-rose-700 font-semibold rounded-full transition-all duration-300 hover:scale-105 active:scale-95 shadow-md"
+                                >
+                                    Clear Search
+                                </button>
+                            </div>
+                        );
+                    }
 
-                                {/* Determine the single source of truth for displayed books:
-                                        - When genres are selected, use the fetched `overrideBooks` array (response.data).
-                                        - Do NOT fall back to the hook-provided `books` when a genre is selected. */}
-                                {
-                                    (() => {
-                                        // Render search/filter results when active; prefer captured `overrideResults.items` if available.
-                                        const searchModeActive = (selectedGenres && selectedGenres.length > 0) || searchActive;
-                                        const displayedBooks = searchModeActive
-                                            ? (overrideResults && Array.isArray(overrideResults.items) ? overrideResults.items : (typeof results !== 'undefined' ? results : books))
-                                            : books;
-                                        // Temporary debug logs to inspect why genre searches show a count but no cards
-                                        console.log('Explore debug - books:', books);
-                                        console.log('Explore debug - total:', total);
-                                        console.log('Explore debug - selectedGenres:', selectedGenres);
-                                        console.log('Explore debug - overrideResults:', overrideResults);
-                                        console.log('Explore debug - results (hook):', typeof results !== 'undefined' ? results : '(no results field)');
-                                        console.log('Explore debug - sample item:', (overrideResults && overrideResults.items && overrideResults.items[0]) || (Array.isArray(results) && results[0]) || (books && books[0]) || null);
-                                        return (
-                                                <div onClickCapture={handleBookLinkClick}>
-                                                    <BookshelfGrid
-                                                        books={displayedBooks}
-                                                        onSave={(b, s) => { const storageKey = `vibeshelf-${s}`; const existing = JSON.parse(localStorage.getItem(storageKey) || '[]'); if (!existing.some(x => x.id === b.id)) { existing.push(b); localStorage.setItem(storageKey, JSON.stringify(existing)); window.dispatchEvent(new Event('storage')); } }}
-                                                        loading={loading}
-                                                        className="mb-8"
-                                                    />
-                                                </div>
-                                            );
-                                    })()
+                    return (
+                            <div onClickCapture={handleBookLinkClick}>
+                                <BookshelfGrid
+                                    books={displayedBooks}
+                                    onSave={(b, s) => { const storageKey = `vibeshelf-${s}`; const existing = JSON.parse(localStorage.getItem(storageKey) || '[]'); if (!existing.some(x => x.id === b.id)) { existing.push(b); localStorage.setItem(storageKey, JSON.stringify(existing)); window.dispatchEvent(new Event('storage')); } }}
+                                    loading={loading}
+                                    className="mb-8"
+                                />
+                            </div>
+                    );
+                })()}
+
+                {/* Only show pagination if there are results */}
+                {(!loading && (
+                    (selectedGenres && selectedGenres.length > 0) || searchActive 
+                    ? (overrideResults && overrideResults.items && overrideResults.items.length > 0)
+                    : (books && books.length > 0)
+                )) && (
+                    <div className="explore-pagination mt-auto">
+                        <button
+                            onClick={() => prevPage()}
+                            disabled={loading || page <= 1}
+                            className="nav-pill"
+                            aria-label="Previous page"
+                        >
+                            ← Previous
+                        </button>
+
+                        <div className="page-info">
+                            Page <span className="font-semibold">{page}</span> of <span className="font-semibold">{totalPages}</span>
+                        </div>
+
+                        <div className="page-list" aria-label="Page navigation">
+                            {(() => {
+                                const pages = [];
+                                const windowSize = 9;
+                                let start = Math.max(1, page - Math.floor(windowSize / 2));
+                                let end = start + windowSize - 1;
+                                if (end > totalPages) { end = totalPages; start = Math.max(1, end - windowSize + 1); }
+                                if (start > 1) {
+                                    pages.push(1);
+                                    if (start > 2) pages.push('left-ellipsis');
                                 }
+                                for (let i = start; i <= end; i += 1) pages.push(i);
+                                if (end < totalPages) {
+                                    if (end < totalPages - 1) pages.push('right-ellipsis');
+                                    pages.push(totalPages);
+                                }
+                                return pages.map((p, idx) => {
+                                    if (p === 'left-ellipsis' || p === 'right-ellipsis') return <div key={`ell-${idx}`} className="page-ellipsis">…</div>;
+                                    const isCurrent = p === page;
+                                    return (
+                                        <button
+                                            key={`pbtn-${p}`}
+                                            onClick={() => goToPage(p)}
+                                            disabled={loading || serverWarning}
+                                            title={serverWarning ? 'Pagination disabled: server returning identical pages' : undefined}
+                                            className={`page-btn ${isCurrent ? 'page-current' : ''}`}
+                                            aria-current={isCurrent ? 'page' : undefined}
+                                        >
+                                            {p}
+                                        </button>
+                                    );
+                                });
+                            })()}
+                        </div>
 
-                {/* Fetch diagnostics removed per UX preference */}
-
-                {/* Bottom-only pagination controls */}
-                <div className="explore-pagination">
-                    <button
-                        onClick={() => prevPage()}
-                        disabled={loading || page <= 1}
-                        className="nav-pill"
-                        aria-label="Previous page"
-                    >
-                        ← Previous
-                    </button>
-
-                    <div className="page-info">
-                        Page <span className="font-semibold">{page}</span> of <span className="font-semibold">{totalPages}</span>
+                        <button
+                            onClick={() => nextPage()}
+                            disabled={loading || !hasMore || serverWarning}
+                            className="nav-pill"
+                            aria-label="Next page"
+                        >
+                            Next →
+                        </button>
                     </div>
-
-                    <div className="page-list" aria-label="Page navigation">
-                        {(() => {
-                            // sliding window pagination
-                            const pages = [];
-                            const windowSize = 9; // number of numeric buttons to show (including edges when possible)
-                            let start = Math.max(1, page - Math.floor(windowSize / 2));
-                            let end = start + windowSize - 1;
-                            if (end > totalPages) { end = totalPages; start = Math.max(1, end - windowSize + 1); }
-                            if (start > 1) {
-                                pages.push(1);
-                                if (start > 2) pages.push('left-ellipsis');
-                            }
-                            for (let i = start; i <= end; i += 1) pages.push(i);
-                            if (end < totalPages) {
-                                if (end < totalPages - 1) pages.push('right-ellipsis');
-                                pages.push(totalPages);
-                            }
-                            return pages.map((p, idx) => {
-                                if (p === 'left-ellipsis' || p === 'right-ellipsis') return <div key={`ell-${idx}`} className="page-ellipsis">…</div>;
-                                const isCurrent = p === page;
-                                return (
-                                    <button
-                                        key={`pbtn-${p}`}
-                                        onClick={() => goToPage(p)}
-                                        disabled={loading || serverWarning}
-                                        title={serverWarning ? 'Pagination disabled: server returning identical pages' : undefined}
-                                        className={`page-btn ${isCurrent ? 'page-current' : ''}`}
-                                        aria-current={isCurrent ? 'page' : undefined}
-                                    >
-                                        {p}
-                                    </button>
-                                );
-                            });
-                        })()}
-                    </div>
-
-                    <button
-                        onClick={() => nextPage()}
-                        disabled={loading || !hasMore || serverWarning}
-                        className="nav-pill"
-                        aria-label="Next page"
-                    >
-                        Next →
-                    </button>
-                </div>
-
-                {/* footer note removed per design */}
+                )}
             </div>
         </div>
     );

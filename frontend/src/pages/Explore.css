@@ -195,7 +195,7 @@
 	color: #b83b62;
 }
 .search-suggestions [role="listbox"] { max-height: 18rem; overflow: auto; }
-.search-suggestions button {
+.search-suggestions .suggestion-row {
 	display: flex;
 	align-items: center;
 	gap: 12px;
@@ -205,9 +205,10 @@
 	border-bottom: 1px solid rgba(255,230,235,0.5);
 	background: transparent;
 	transition: background 180ms ease, transform 180ms cubic-bezier(.2,.9,.2,1), box-shadow 180ms ease;
+	cursor: pointer;
 }
-.search-suggestions button:hover { background: linear-gradient(90deg, rgba(255,238,245,0.8), rgba(255,245,248,0.85)); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(255,140,180,0.06); }
-.search-suggestions button[data-active="true"], .search-suggestions button:focus {
+.search-suggestions .suggestion-row:hover { background: linear-gradient(90deg, rgba(255,238,245,0.8), rgba(255,245,248,0.85)); transform: translateY(-2px); box-shadow: 0 10px 24px rgba(255,140,180,0.06); }
+.search-suggestions .suggestion-row[data-active="true"], .search-suggestions .suggestion-row:focus {
 	background: linear-gradient(90deg,#ffeaf2,#ffd4e6);
 	color: #6b1130;
 }
@@ -219,6 +220,22 @@
 .search-suggestions .meta .title { font-weight:700; color:#9b1838; }
 .search-suggestions .meta .sub { font-size:12px; color:#9aa3a8; margin-top:4px; }
 .search-suggestions .chev { width:26px; text-align:center; color:#e11d48; }
+
+.suggestion-remove {
+	width: 26px;
+	height: 26px;
+	border-radius: 999px;
+	border: 1px solid rgba(255,150,180,0.6);
+	background: #fff;
+	color: #d81b60;
+	font-size: 18px;
+	line-height: 1;
+	font-weight: 700;
+	box-shadow: 0 6px 16px rgba(255,140,180,0.12);
+	transition: transform 160ms ease, box-shadow 160ms ease, background 160ms ease;
+}
+.suggestion-remove:hover { transform: translateY(-1px) scale(1.04); background: #fff0f5; box-shadow: 0 10px 22px rgba(255,140,180,0.16); }
+.suggestion-remove:active { transform: scale(0.96); }
 
 
 /* Clear search pill (keeps the same pink aesthetic) */
@@ -678,5 +695,26 @@
 	.search-suggestions .meta .sub {
 		color: #8a5b63 !important;
 	}
+	/* Floating animation for the empty state image */
+.floating-img {
+    animation: float 4s ease-in-out infinite;
+}
+
+@keyframes float {
+    0% { transform: translateY(0px); }
+    50% { transform: translateY(-10px); }
+    100% { transform: translateY(0px); }
+}
+
+/* Ensure the wrapper respects the layout */
+.animate-in {
+    animation: fadeIn 0.8s ease-out forwards;
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
+	
+}
 }
 

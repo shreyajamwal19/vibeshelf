@@ -14,6 +14,8 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@mlc-ai/web-llm": "^0.2.82",
+    "@xenova/transformers": "^2.0.1",
     "axios": "^1.10.0",
     "csv-parse": "^6.1.0",
     "jwt-decode": "^4.0.0",
@@ -36,7 +38,7 @@
     "globals": "^16.3.0",
     "postcss": "^8.5.6",
     "tailwindcss": "^3.4.17",
-    "vite": "^7.0.4"
+    "vite": "^7.3.6"
   },
   "devDependenciesMeta": {},
   "description": "This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.",

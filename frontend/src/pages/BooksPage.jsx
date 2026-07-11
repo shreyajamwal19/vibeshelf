@@ -1,11 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { fetchBooks } from '../services/api.js';
+import useBookAIContext from '../hooks/useBookAIContext.js';
 
 export default function BooksPage() {
   const [books, setBooks] = useState([]);
   const [selectedGenre, setSelectedGenre] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const { setAllBooks } = useBookAIContext();
 
   // Static, hardcoded list of genres (do not derive from books)
   const GENRES = ['Fiction', 'Romance', 'Fantasy', 'Mystery', 'Thriller', 'Young Adult'];
@@ -23,7 +25,9 @@ export default function BooksPage() {
         // Backend returns { data, pagination } — always use response.data as the books array
         // eslint-disable-next-line no-console
         console.log('books:', response.data);
-        if (mounted) setBooks(response.data.slice(60));
+        const booksData = response.data.slice(60);
+        if (mounted) setBooks(booksData);
+        if (mounted) setAllBooks(booksData);
 
       } catch (err) {
         if (mounted) setError(err.message || 'Failed to load books');
@@ -33,7 +37,7 @@ export default function BooksPage() {
     })();
 
     return () => { mounted = false; };
-  }, [selectedGenre]);
+  }, [selectedGenre, setAllBooks]);
 
   if (loading) return <div style={{ padding: 16 }}>Loading books...</div>;
   if (error) return <div style={{ padding: 16, color: 'red' }}>Error: {error}</div>;

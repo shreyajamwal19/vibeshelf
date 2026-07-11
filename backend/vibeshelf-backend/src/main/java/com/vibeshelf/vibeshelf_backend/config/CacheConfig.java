@@ -81,6 +81,11 @@ public class CacheConfig {
             RedisCacheConfiguration.defaultCacheConfig()
                 .entryTtl(Duration.ofMinutes(60))
                 .disableCachingNullValues());
+                
+        cacheConfigurations.put("groq-recommendations", 
+            RedisCacheConfiguration.defaultCacheConfig()
+                .entryTtl(Duration.ofHours(1))
+                .disableCachingNullValues());
 
         return RedisCacheManager.builder(redisConnectionFactory)
             .cacheDefaults(RedisCacheConfiguration.defaultCacheConfig()
@@ -103,7 +108,8 @@ public class CacheConfig {
         // Configure specific caches
         cacheManager.setCacheNames(java.util.Arrays.asList(
             "books:page", "books:search", "books:popular", 
-            "books:count", "books:genre", "books:suggestions"));
+            "books:count", "books:genre", "books:suggestions",
+            "groq-recommendations"));
         return cacheManager;
     }
     

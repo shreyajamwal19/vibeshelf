@@ -3,7 +3,9 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Link, Routes, Route, Navigate, Outlet, useLocation } from 'react-router-dom';
 import { AuthProvider, useAuth } from './auth/AuthContext.jsx';
 import { ThemeProvider, useTheme } from './contexts/ThemeContext.jsx';
+import { BooksDataProvider, useBooksData } from './contexts/BooksDataContext.jsx';
 import ConfirmDialog from './components/ConfirmDialog';
+import { initializeApp } from './services/AppInitializer.js';
 
 import PersonalizedRecsComponent from './components/PersonalizedRecsComponent';
 import Explore from './pages/Explore';
@@ -144,11 +146,12 @@ const AppNavbar = () => {
 };
 
 function AppLayout() {
+  const { books } = useBooksData();
+  
   return (
     <>
       <AppNavbar />
       <main className="flex-grow overflow-y-auto p-8 transition-colors">
-
         <Outlet />
       </main>
       {/* footer removed per design request */}
@@ -160,39 +163,46 @@ function App() {
   const location = useLocation();
   const isBookDetail = location.pathname.startsWith("/book/");
 
+  // Initialize app on mount (knowledge base + Web LLM + session)
+  useEffect(() => {
+    console.log('[App] Mounting - triggering initialization');
+    initializeApp(); // Fire and forget (non-blocking)
+  }, []);
+
   return (
     <ThemeProvider>
-      <AuthProvider>  
-  <div className={`h-screen ${isBookDetail ? 'overflow-auto' : 'overflow-hidden'} flex flex-col transition-colors`}>
-    
-        <Routes>
-          <Route path="/login" element={<LoginPage />} />
-          <Route path="/signup" element={<SignupPage />} />
-          <Route path="/verify-otp" element={<VerifyOtpPage />} />
-          <Route element={<PrivateRoute />}>
-            {/* Use full layout */}
-            <Route element={!isBookDetail ? <AppLayout /> : <Outlet />}>
-              <Route path="/" element={<PersonalizedRecsComponent />} />
-              <Route path="/explore" element={<Explore />} />
-              <Route path="/books" element={<BooksPage />} />
-              <Route path="/mytbr" element={<TBRPage />} />
-            </Route>
+      <AuthProvider>
+        <BooksDataProvider>
+          <div className={`h-screen ${isBookDetail ? 'overflow-auto' : 'overflow-hidden'} flex flex-col transition-colors`}>
+            <Routes>
+              <Route path="/login" element={<LoginPage />} />
+              <Route path="/signup" element={<SignupPage />} />
+              <Route path="/verify-otp" element={<VerifyOtpPage />} />
+              <Route element={<PrivateRoute />}>
+                {/* Use full layout */}
+                <Route element={!isBookDetail ? <AppLayout /> : <Outlet />}>
+                  <Route path="/" element={<PersonalizedRecsComponent />} />
+                  <Route path="/explore" element={<Explore />} />
+                  <Route path="/books" element={<BooksPage />} />
+                  <Route path="/mytbr" element={<TBRPage />} />
+                </Route>
 
-            {/* Book detail uses minimal layout */}
-            <Route path="/book/:id" element={<BookDetail />} />
-          </Route>
+                {/* Book detail uses minimal layout */}
+                <Route path="/book/:id" element={<BookDetail />} />
+              </Route>
 
-          {/* 404 page */}
-          <Route
-            path="*"
-            element={
-              <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
-                <h1 className="text-4xl font-extrabold text-rose-800">404 - Page Not Found</h1>
-              </div>
-            }
-          />
-        </Routes>
-        </div>
+              {/* 404 page */}
+              <Route
+                path="*"
+                element={
+                  <div className="flex items-center justify-center min-h-[calc(100vh-64px)]">
+                    <h1 className="text-4xl font-extrabold text-rose-800">404 - Page Not Found</h1>
+                  </div>
+                }
+              />
+            </Routes>
+          </div>
+        </BooksDataProvider>
       </AuthProvider>
     </ThemeProvider>
   );
