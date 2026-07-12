@@ -55,6 +55,12 @@ const Icon = memo(function Icon({ name, size = 20, stroke = 2, fill = "none", cl
           <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" fill="currentColor" stroke="none" />
         </svg>
       );
+    case "sparkle-outline":
+      return (
+        <svg {...common}>
+          <path d="M12 2l2.4 7.6L22 12l-7.6 2.4L12 22l-2.4-7.6L2 12l7.6-2.4L12 2z" />
+        </svg>
+      );
     case "send":
       return (
         <svg {...common} style={{ transform: "rotate(45deg)", ...style }}>
@@ -80,20 +86,31 @@ const Icon = memo(function Icon({ name, size = 20, stroke = 2, fill = "none", cl
       return <svg {...common}><polyline points="23 4 23 10 17 10" /><path d="M20.49 15A9 9 0 1 1 5.64 5.64L23 10" /></svg>;
     case "vault":
       return <svg {...common}><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="12" cy="12" r="3.5" /><path d="M12 8.5V6M12 18v-2.5M8.5 12H6M18 12h-2.5" /></svg>;
-    case "flower":
-      return (
-        <svg {...common} fill="currentColor" stroke="none">
-          <circle cx="12" cy="12" r="2.1" />
-          <ellipse cx="12" cy="6.2" rx="2" ry="3.2" />
-          <ellipse cx="12" cy="17.8" rx="2" ry="3.2" />
-          <ellipse cx="6.2" cy="12" rx="3.2" ry="2" />
-          <ellipse cx="17.8" cy="12" rx="3.2" ry="2" />
-        </svg>
-      );
+    case "cup":
+      return <svg {...common}><path d="M18 8h1a4 4 0 0 1 0 8h-1" /><path d="M2 8h16v9a4 4 0 0 1-4 4H6a4 4 0 0 1-4-4V8z" /><line x1="6" y1="1" x2="6" y2="4" /><line x1="10" y1="1" x2="10" y2="4" /><line x1="14" y1="1" x2="14" y2="4" /></svg>;
+    case "library":
+      return <svg {...common}><path d="M4 10v7" /><path d="M8 10v7" /><path d="M12 10v7" /><path d="M16 10v7" /><path d="M20 10v7" /><path d="M2 21h20" /><path d="M12 4l9 4H3l9-4z" /></svg>;
+    case "users":
+      return <svg {...common}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>;
+    case "droplet":
+      return <svg {...common} fill="currentColor" stroke="none"><path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" /></svg>;
     default:
       return null;
   }
 });
+
+const getPillIcon = (text) => {
+  const t = text.toLowerCase();
+  if (t.includes("cozy")) return "cup";
+  if (t.includes("harry")) return "zap";
+  if (t.includes("academia")) return "library";
+  if (t.includes("family")) return "users";
+  if (t.includes("romance")) return "heart";
+  if (t.includes("endings")) return "droplet";
+  if (t.includes("fiction")) return "book";
+  if (t.includes("magical")) return "sparkle-outline";
+  return "sparkle";
+};
 
 /* ============================================================================
  * 3. HELPERS
@@ -139,68 +156,106 @@ const formatBook = (raw, id) => ({
  * ==========================================================================*/
 
 const EmptyState = memo(function EmptyState({ onReset, mood, onSuggestion }) {
-  // Scrapbook details: washi tape and pressed flower SVGs
+  // Checkered Washi Tape
   const WashiTape = () => (
-    <svg width="74" height="22" style={{ position: 'absolute', top: -14, left: 24, zIndex: 2, pointerEvents: 'none', transform: 'rotate(-4deg)' }} aria-hidden="true">
-      <rect x="0" y="0" width="74" height="22" rx="6" fill="#ffe4ef" stroke="#ffc7de" strokeDasharray="6 3" strokeWidth="1.5"/>
-      <rect x="0" y="0" width="74" height="22" rx="6" fill="url(#washiPattern)" opacity="0.18"/>
+    <svg width="80" height="20" style={{ position: 'absolute', top: -10, left: '50%', zIndex: 2, pointerEvents: 'none', transform: 'translateX(-50%) rotate(-1deg)' }} aria-hidden="true">
+      <rect x="0" y="0" width="80" height="20" fill="#f8b6cc" opacity="0.9"/>
+      <pattern id="checkers" x="0" y="0" width="8" height="8" patternUnits="userSpaceOnUse">
+        <rect width="4" height="4" fill="#f09cb8" />
+        <rect x="4" y="4" width="4" height="4" fill="#f09cb8" />
+      </pattern>
+      <rect x="0" y="0" width="80" height="20" fill="url(#checkers)" opacity="0.8"/>
+      <rect x="0" y="0" width="80" height="20" fill="url(#noise)" opacity="0.1"/>
       <defs>
-        <pattern id="washiPattern" width="8" height="8" patternUnits="userSpaceOnUse">
-          <circle cx="4" cy="4" r="1.5" fill="#e75480" />
-        </pattern>
+        <filter id="noise">
+          <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="4" stitchTiles="stitch"/>
+        </filter>
       </defs>
     </svg>
   );
-  const PressedFlower = () => (
-    <svg width="32" height="32" style={{ position: 'absolute', bottom: 8, right: 14, zIndex: 2, pointerEvents: 'none', transform: 'rotate(7deg)' }} aria-hidden="true">
-      <g opacity="0.7">
-        <circle cx="16" cy="16" r="7" fill="#ffc7de" />
-        <ellipse cx="16" cy="10" rx="3" ry="6" fill="#e75480" opacity="0.18" />
-        <ellipse cx="10" cy="18" rx="2" ry="4" fill="#e75480" opacity="0.18" />
-        <ellipse cx="22" cy="20" rx="2" ry="4" fill="#e75480" opacity="0.18" />
-      </g>
+
+  // Cute Band-aid Sticker
+  const BandAid = () => (
+    <svg width="48" height="24" style={{ position: 'absolute', bottom: -8, right: -12, zIndex: 3, pointerEvents: 'none', transform: 'rotate(-15deg)' }} viewBox="0 0 60 30" aria-hidden="true">
+      <rect x="2" y="5" width="56" height="20" rx="10" fill="#ffb4a2" stroke="#e5989b" strokeWidth="1.5" />
+      <rect x="18" y="5" width="24" height="20" fill="#ffd1c8" />
+      <circle cx="23" cy="11" r="1.5" fill="#e5989b" />
+      <circle cx="37" cy="11" r="1.5" fill="#e5989b" />
+      <circle cx="23" cy="19" r="1.5" fill="#e5989b" />
+      <circle cx="37" cy="19" r="1.5" fill="#e5989b" />
+      {/* Happy Face */}
+      <circle cx="27" cy="15" r="1.5" fill="#6d597a" />
+      <circle cx="33" cy="15" r="1.5" fill="#6d597a" />
+      <path d="M28 17.5 Q30 20 32 17.5" fill="none" stroke="#6d597a" strokeWidth="1.5" strokeLinecap="round" />
     </svg>
   );
+
+  // Hand-drawn Stars & Sparkles
+  const StarDoodle = ({ style }) => (
+    <svg width="24" height="24" viewBox="0 0 100 100" style={{ position: 'absolute', pointerEvents: 'none', ...style }} aria-hidden="true">
+      <path d="M50 10 L60 40 L90 50 L60 60 L50 90 L40 60 L10 50 L40 40 Z" fill="none" stroke="var(--pink-300)" strokeWidth="3" strokeLinejoin="round" />
+    </svg>
+  );
+
+  const SparkleDoodle = ({ style }) => (
+    <svg width="14" height="14" viewBox="0 0 100 100" style={{ position: 'absolute', pointerEvents: 'none', ...style }} aria-hidden="true">
+      <path d="M50 5 Q50 50 95 50 Q50 50 50 95 Q50 50 5 50 Q50 50 50 5 Z" fill="var(--pink-300)" />
+    </svg>
+  );
+
   return (
     <div className="vs-hero vs-fade-in" role="status" aria-live="polite">
-      <div className="vs-hero-card vs-hero-card-premium">
-        <div className="vs-hero-left">
-          <span className="vs-hero-eyebrow">made for you ♡</span>
-          <h2 className="vs-hero-title">Find your next favorite story.</h2>
-          <p className="vs-hero-sub">
-            Tell us a mood, a genre, or a book you couldn't stop thinking about.<br/>
-            We'll recommend stories that feel like magic, just for you.
-          </p>
-          <button className="vs-hero-cta vs-hero-cta-premium" onClick={onReset} tabIndex={0}>
-            Start discovering <Icon name="sparkle" size={15} />
-          </button>
-          <div className="vs-hero-pills vs-hero-pills-premium">
-            {HERO_SUGGESTIONS.map((s, i) => (
+      <div className="vs-hero-card-scrapbook">
+        
+        <div className="vs-hero-top-section">
+          <div className="vs-hero-left">
+            <div className="vs-hero-eyebrow-sticker">made for you ♡</div>
+            
+            <StarDoodle style={{ top: -5, left: 140, transform: 'rotate(15deg)' }} />
+            <SparkleDoodle style={{ top: 20, right: 30 }} />
+            
+            <h2 className="vs-hero-title">
+              Find your next favorite story.
+              <SparkleDoodle style={{ display: 'inline-block', position: 'relative', top: -12, left: 5, width: 20, height: 20 }} />
+            </h2>
+            <p className="vs-hero-sub">
+              Tell us a mood, a genre, or a book you couldn't stop thinking about.<br/>
+              We'll recommend stories that feel like magic, just for you.
+            </p>
+            
+            <button className="vs-hero-cta-scrapbook" onClick={onReset} tabIndex={0}>
+              Start discovering <Icon name="sparkle" size={14} />
+            </button>
+          </div>
+          
+          <div className="vs-hero-right">
+            <div className="vs-hero-polaroid-scrapbook">
+              <WashiTape />
+              <div className="vs-polaroid-image-container">
+                <img src={heroBooks} alt="A curated stack of books" />
+              </div>
+              <div className="vs-hero-quote-scrapbook">books are a uniquely portable magic ✨</div>
+              <BandAid />
+            </div>
+          </div>
+        </div>
+
+        <div className="vs-hero-bottom-section">
+          <div className="vs-hero-pills-scrapbook">
+            {HERO_SUGGESTIONS.map((s) => (
               <button
                 key={s}
                 type="button"
-                className="vs-hero-pill vs-hero-pill-premium"
-                style={{
-                  transform: i % 2 === 0 ? 'rotate(-2.5deg)' : 'rotate(1.5deg)',
-                  marginTop: i % 3 === 0 ? 2 : 0,
-                  marginBottom: i % 4 === 0 ? 2 : 0,
-                  zIndex: 1
-                }}
+                className="vs-hero-pill-scrapbook"
                 onClick={() => onSuggestion(s)}
               >
+                <Icon name={getPillIcon(s)} size={13} className="vs-pill-icon" />
                 {s}
               </button>
             ))}
           </div>
         </div>
-        <div className="vs-hero-right">
-          <div className="vs-hero-polaroid vs-hero-polaroid-premium">
-            <WashiTape />
-            <img src={heroBooks} alt="A curated stack of books" style={{ borderRadius: 10, boxShadow: '0 2px 16px 0 rgba(231,84,128,0.10)' }} />
-            <div className="vs-hero-quote vs-hero-quote-premium">books are a uniquely portable magic ✨</div>
-            <PressedFlower />
-          </div>
-        </div>
+
       </div>
     </div>
   );
@@ -350,7 +405,7 @@ const Modal = memo(function Modal({ open, onClose, children, width = 460 }) {
 });
 
 /* ============================================================================
- * STYLESHEET (moved before main component to avoid TDZ)
+ * STYLESHEET
  * ==========================================================================*/
 
 const StyleSheet = memo(function StyleSheet() {
@@ -385,269 +440,231 @@ const StyleSheet = memo(function StyleSheet() {
           radial-gradient(1200px 800px at 10% 5%, #FFF7FB 0%, rgba(255,247,251,0) 60%),
           radial-gradient(900px 700px at 90% 100%, #FFE4EF 0%, rgba(255,228,239,0) 60%),
           linear-gradient(160deg, #FFF7FB 0%, #FFE4EF 55%, #FFC7DE 100%);
-        padding: 24px 20px;
+        padding: 16px 20px;
         box-sizing: border-box;
         -webkit-font-smoothing: antialiased;
       }
 
       /* ---------------------------------------------------------------- */
-      /* NEW EDITORIAL HERO (2-COLUMN)                                    */
+      /* NEW SCRAPBOOK HERO                                               */
       /* ---------------------------------------------------------------- */
       
       .vs-hero {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         justify-content: center;
         flex: 1;
         width: 100%;
-        min-height: auto; /* Changed to auto to ensure strict vertical fitting */
+        min-height: auto;
         margin: 0;
+        padding-top: 16px;
+        padding-bottom: 8px;
         animation: heroFadeUp .7s cubic-bezier(.16,1,.3,1);
       }
       @keyframes heroFadeUp { from { opacity: 0; transform: translateY(18px); } to { opacity: 1; transform: none; } }
 
-      .vs-hero-card-premium {
+      .vs-hero-card-scrapbook {
         position: relative;
-        display: flex;
-        flex-direction: row;
-        align-items: stretch;
-        width: min(940px, 92vw);
-        background: rgba(255, 255, 255, 0.8); /* Reduced opacity for more bookshelf visibility */
-        border: 1.5px solid rgba(255, 228, 239, 0.55);
-        border-radius: 40px;
-        padding: 28px 36px; /* Tightened from 32px 40px */
-        gap: 24px; /* Tightened from 36px */
-        box-shadow: 0 24px 50px -20px rgba(199, 60, 110, 0.22), 0 2px 16px 0 rgba(255,199,222,0.10);
-        backdrop-filter: blur(16px) saturate(120%); /* Stronger frosted glass effect */
-        box-sizing: border-box;
-        z-index: 2;
-      }
-      .vs-hero-left {
-        flex: 0 0 44%;
         display: flex;
         flex-direction: column;
-        justify-content: flex-start;
-        align-items: flex-start;
-        min-width: 0;
-        padding: 18px 0 0 0; /* Move block lower by ~18px, no bottom pad */
+        width: min(1100px, 95vw);
+        min-height: 520px;
+        justify-content: space-between;
+        background: rgba(253, 249, 250, 0.6);
+        backdrop-filter: blur(12px);
+        border-radius: 24px;
+        padding: 48px 56px 36px;
+        box-shadow: 0 12px 40px -12px rgba(210, 110, 140, 0.25), 0 2px 10px rgba(210, 110, 140, 0.08);
+        border: 1px solid rgba(248, 225, 231, 0.8);
+        box-sizing: border-box;
+        z-index: 2;
+        border: 8px double rgba(231, 84, 128, 0.3); outline: 2px solid rgba(231, 84, 128, 0.1); outline-offset: 6px;
       }
+
+      .vs-hero-top-section {
+        display: flex;
+        flex-direction: row;
+        align-items: center;
+        gap: 32px;
+        margin-top: auto; 
+        margin-bottom: auto; 
+      }
+
+      .vs-hero-left {
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        align-items: flex-start;
+        position: relative;
+      }
+
       .vs-hero-right {
-        flex: 0 0 56%;
+        flex: 0 0 340px; 
         display: flex;
         justify-content: center;
-        align-items: flex-start; /* Changed to flex-start to align with headline top */
-        min-width: 0;
+        align-items: center;
         position: relative;
-        padding-top: 12px; /* Small nudge to visually align precisely with the headline */
       }
-      .vs-hero-eyebrow {
-        font-family: var(--serif);
-        font-size: 14px;
-        color: var(--pink-500);
-        margin-bottom: 18px; /* More breathing room above headline */
-        display: block;
-        font-style: italic;
-        letter-spacing: 0.01em;
-        opacity: 0.92;
+
+      .vs-hero-eyebrow-sticker {
+        font-family: 'Caveat', cursive;
+        font-size: 17px;
+        color: #9c1f48;
+        background: #fff0f5;
+        padding: 5px 14px;
+        border-radius: 6px;
+        transform: rotate(-2deg);
+        margin-bottom: 20px;
+        box-shadow: 2px 2px 0px rgba(231, 84, 128, 0.15);
+        border: 1px dashed rgba(231, 84, 128, 0.4);
+        display: inline-block;
+        font-weight: 600;
+        cursor: default;
       }
+
       .vs-hero-title {
         font-family: var(--serif);
-        font-size: 40px;
-        line-height: 1.08;
+        font-size: 44px;
+        line-height: 1.05;
         color: var(--pink-700);
-        margin: 0 0 6px 0; /* Tighten gap below headline */
+        margin: 0 0 16px 0;
         letter-spacing: -1.2px;
         font-weight: 700;
-        text-shadow: 0 2px 0 rgba(255,255,255,0.18);
+        position: relative;
+        text-shadow: 1px 1px 0px rgba(255, 255, 255, 0.5);
       }
+
       .vs-hero-sub {
-        font-size: 15px;
+        font-size: 16px;
         color: var(--ink-soft);
         line-height: 1.6;
-        margin-bottom: 10px; /* Tighten gap below paragraph */
-        max-width: 440px;
+        margin-bottom: 24px;
+        max-width: 520px;
         font-weight: 500;
-        letter-spacing: 0.01em;
-        opacity: 0.93;
       }
-      .vs-hero-cta-premium {
+
+      .vs-hero-cta-scrapbook {
         display: inline-flex;
         align-items: center;
-        gap: 12px;
-        background: linear-gradient(90deg, #ffc7de 0%, #ff8fb3 100%); /* Slightly darker pink for contrast */
-        color: var(--pink-700);
+        gap: 10px;
+        background: linear-gradient(135deg, var(--pink-300), var(--pink-500));
+        color: #FFF;
         border: none;
-        padding: 12px 28px;
+        padding: 14px 30px;
         border-radius: 999px;
         font-weight: 700;
         font-size: 15px;
         font-family: var(--sans);
         cursor: pointer;
-        box-shadow: 0 6px 24px -8px rgba(231,84,128,0.13), 0 1.5px 0 rgba(255,255,255,0.18);
-        transition: background .22s, color .22s, box-shadow .22s, transform .18s;
-        margin-bottom: 10px; /* Tighten gap below CTA */
-        border: 1.5px solid #ff8fb3; /* Darkened border to match new gradient */
-        letter-spacing: 0.01em;
+        box-shadow: 0 8px 20px -6px rgba(231, 84, 128, 0.4);
+        transition: transform .2s, box-shadow .2s, filter .2s;
+        position: relative;
+        z-index: 10;
       }
-      .vs-hero-cta-premium:hover, .vs-hero-cta-premium:focus-visible {
-        background: linear-gradient(90deg, #ff8fb3 0%, #ffc7de 100%); /* Reversed hover gradient */
-        color: var(--pink-700);
-        box-shadow: 0 12px 32px -8px rgba(231,84,128,0.18), 0 2px 0 rgba(255,255,255,0.18);
-        transform: translateY(-2px) scale(1.03) rotate(-0.5deg);
+      .vs-hero-cta-scrapbook:hover {
+        filter: brightness(1.05);
+        transform: translateY(-2px) scale(1.02);
+        box-shadow: 0 12px 24px -6px rgba(231, 84, 128, 0.5);
       }
-      .vs-hero-pills-premium {
+
+      /* Clean Flex Layout for Pills */
+      .vs-hero-bottom-section {
+        width: 100%;
+        display: flex;
+        justify-content: center;
+        border-top: 1px dashed rgba(244, 213, 223, 0.8);
+        padding-top: 24px; 
+        margin-top: 32px; 
+      }
+
+      .vs-hero-pills-scrapbook {
         display: flex;
         flex-wrap: wrap;
-        gap: 6px 8px;
-        margin-top: 0;
-        margin-bottom: 0;
-        align-items: center; /* Ensure chips are aligned */
+        gap: 10px;
+        justify-content: center;
+        max-width: 1000px; 
       }
-      .vs-hero-pill-premium {
-        background: linear-gradient(90deg, #fff7fb 0%, #ffe4ef 100%);
-        border: 1.5px solid #ffc7de;
-        padding: 8px 12px; /* Slightly taller, less horizontal padding */
-        border-radius: 999px;
+
+      .vs-hero-pill-scrapbook {
+        background: rgba(255, 255, 255, 0.8);
+        border: 1px solid var(--pink-200);
+        padding: 8px 16px;
+        border-radius: 20px;
         color: var(--pink-700);
-        font-size: 12px;
+        font-size: 13.5px;
         font-weight: 600;
         font-family: var(--sans);
         cursor: pointer;
-        box-shadow: 0 2px 8px -2px rgba(231,84,128,0.07);
-        transition: background .18s, color .18s, box-shadow .18s, border-color .18s, transform .18s;
-        margin-bottom: 0;
-        position: relative;
-        min-height: 32px; /* Ensure consistent height */
+        box-shadow: 0 2px 6px rgba(231,84,128,0.04);
+        transition: all .2s ease;
         display: flex;
         align-items: center;
+        gap: 8px;
       }
-      .vs-hero-pill-premium:hover, .vs-hero-pill-premium:focus-visible {
-        background: linear-gradient(90deg, #fff 0%, #ffe4ef 100%);
-        color: var(--pink-500);
+      .vs-hero-pill-scrapbook:hover {
+        background: var(--pink-50);
         border-color: var(--pink-300);
-        box-shadow: 0 6px 18px -4px rgba(231,84,128,0.16), 0 1.5px 0 rgba(255,255,255,0.13);
-        z-index: 2;
-        transform: scale(1.045) rotate(-0.5deg);
+        color: var(--pink-700);
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(231, 84, 128, 0.12);
       }
-      .vs-hero-polaroid-premium {
-        background: #fff8fb;
-        padding: 16px 16px 54px 16px; /* Increased bottom padding for caption */
-        transform: rotate(2.7deg) skew(-0.5deg, 0.7deg);
-        box-shadow: 0 28px 56px -20px rgba(199,60,110,0.15), 0 2px 20px 0 rgba(255,199,222,0.12);
-        max-width: 350px; /* Increased size by ~13% */
-        border-radius: 8px;
+      .vs-pill-icon {
+        color: var(--pink-500);
+      }
+
+      /* Polaroid Styling */
+      .vs-hero-polaroid-scrapbook {
+        background: #FFFFFF;
+        padding: 14px 14px 64px 14px; 
+        transform: rotate(3deg);
+        box-shadow: 0 16px 32px -10px rgba(160, 60, 90, 0.15), 0 2px 8px rgba(0,0,0,0.03);
+        border-radius: 2px;
         position: relative;
-        min-height: 315px; /* Proportional height increase */
-        margin-bottom: 0;
-        margin-top: 0;
-        border: 1.5px solid #ffe4ef;
-        overflow: visible;
         z-index: 3;
-        box-shadow: inset 0 1px 0 rgba(255,255,255,0.8), 0 28px 56px -20px rgba(199,60,110,0.15), 0 2px 20px 0 rgba(255,199,222,0.12);
+        border: 1px solid #F5E6EA;
+        transition: transform .3s ease;
+        width: 100%;
       }
-      .vs-hero-polaroid-premium::before {
-        content: '';
-        position: absolute;
-        top: -8px;
-        left: -8px;
-        right: 8px;
-        bottom: 8px;
-        background: rgba(255, 228, 239, 0.3);
-        border-radius: 8px;
-        z-index: -1;
-        transform: rotate(-1.5deg);
-        opacity: 0.6;
+      .vs-hero-polaroid-scrapbook:hover {
+        transform: rotate(1deg) scale(1.02);
       }
-      .vs-hero-polaroid-premium::after {
-        content: '';
-        position: absolute;
-        top: 6px;
-        left: 6px;
-        right: -6px;
-        bottom: -6px;
-        background: rgba(255, 228, 239, 0.2);
-        border-radius: 8px;
-        z-index: -2;
-        transform: rotate(1.2deg);
-        opacity: 0.4;
+      .vs-polaroid-image-container {
+        overflow: hidden;
+        border-radius: 2px;
+        background: #FDF9FA;
       }
-      .vs-hero-polaroid-premium::before {
-        background-image: radial-gradient(circle at 20% 20%, rgba(231, 84, 128, 0.08) 0%, transparent 40%),
-                         radial-gradient(circle at 80% 80%, rgba(255, 199, 222, 0.12) 0%, transparent 35%);
-        border-radius: 8px;
-      }
-      .vs-hero-polaroid-premium::after {
-        background: linear-gradient(45deg, transparent 48%, rgba(255, 228, 239, 0.15) 50%, transparent 52%),
-                    linear-gradient(-45deg, transparent 48%, rgba(255, 228, 239, 0.15) 50%, transparent 52%);
-        border-radius: 8px;
-      }
-      .vs-hero-polaroid-premium img {
+      .vs-hero-polaroid-scrapbook img {
         width: 100%;
         height: auto;
         display: block;
-        border-radius: 10px;
-        box-shadow: 0 2px 16px 0 rgba(231,84,128,0.10);
-        position: relative;
-        z-index: 1;
+        filter: sepia(0.05) contrast(1.02);
       }
-      .vs-hero-quote-premium {
+      .vs-hero-quote-scrapbook {
         position: absolute;
-        bottom: 16px; /* Centered in the 54px bottom padding area */
+        bottom: 22px; 
         left: 0;
         right: 0;
         text-align: center;
-        font-family: 'Caveat', cursive; /* Whimsical handwritten font */
-        font-size: 24px;
-        color: #b01549; /* Richer pink color */
-        transform: rotate(-1.5deg); /* Slight handwritten slant */
-        opacity: 0.95;
-        letter-spacing: 0.04em; /* Increased letter spacing */
-        background: transparent; /* Removed background to look natively written */
-        padding: 0;
-        border: none;
-        box-shadow: none;
-        white-space: nowrap; /* Forces one clean line */
-        z-index: 2;
+        font-family: 'Caveat', cursive;
+        font-size: 22px; 
+        line-height: 1.2;
+        color: var(--ink-soft);
+        opacity: 0.9;
+        letter-spacing: 0.02em;
       }
 
       @media (max-width: 900px) {
-        .vs-hero-card-premium {
-          flex-direction: column;
-          padding: 24px 16px;
-          gap: 20px;
-        }
-        .vs-hero-left, .vs-hero-right {
-          flex: 1 1 100%;
-          padding: 0;
-        }
-        .vs-hero-polaroid-premium {
-          margin-top: 0;
-          max-width: 280px;
-          min-height: 260px;
-        }
-        .vs-hero-polaroid-premium::before,
-        .vs-hero-polaroid-premium::after {
-          display: none;
-        }
+        .vs-hero-card-scrapbook { padding: 32px 24px; min-height: auto; }
+        .vs-hero-top-section { flex-direction: column; text-align: center; gap: 32px; }
+        .vs-hero-left { align-items: center; }
+        .vs-hero-eyebrow-sticker { margin: 0 auto 16px; }
+        .vs-hero-polaroid-scrapbook { max-width: 280px; }
       }
       @media (max-width: 540px) {
-        .vs-hero-title {
-          font-size: 32px;
-        }
-        .vs-hero-card-premium {
-          padding: 16px 8px;
-          gap: 12px;
-        }
-        .vs-hero-polaroid-premium {
-          max-width: 96vw;
-          min-height: 240px;
-        }
-        .vs-hero-polaroid-premium::before,
-        .vs-hero-polaroid-premium::after {
-          display: none;
-        }
+        .vs-hero-title { font-size: 32px; }
+        .vs-hero-card-scrapbook { padding: 24px 16px; }
+        .vs-hero-polaroid-scrapbook { max-width: 90vw; }
       }
-
 
       /* ---------------------------------------------------------------- */
       /* SEARCH BAR & INPUT AREA                                          */
@@ -656,11 +673,11 @@ const StyleSheet = memo(function StyleSheet() {
         display: flex; 
         flex-direction: column; 
         gap: 12px; 
-        width: min(1100px, 92vw); 
+        width: min(1100px, 95vw); 
         margin: 0 auto; 
         position: relative;
         z-index: 10;
-        margin-bottom: 24px;
+        margin-bottom: 2px; 
       }
       
       .vs-refine-row { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
@@ -713,7 +730,6 @@ const StyleSheet = memo(function StyleSheet() {
       }
       .vs-send-btn:disabled { opacity: 0.55; cursor: not-allowed; transform: none; box-shadow: none; }
       
-      /* Redesigned Stop Button */
       .vs-stop-btn { 
         background: linear-gradient(135deg, #FF7EB3, #FF5D9E, #F06292) !important;
         box-shadow: 0 8px 20px -5px rgba(240, 98, 146, 0.4) !important;
@@ -754,7 +770,7 @@ const StyleSheet = memo(function StyleSheet() {
         position: relative; z-index: 1;
         display: flex; gap: 24px;
         width: 100%; max-width: 1240px;
-        margin: 0 auto; height: calc(100vh - 48px);
+        margin: 0 auto; height: calc(100vh - 32px);
       }
       .vs-main {
         flex: 1; display: flex; flex-direction: column; gap: 18px;
@@ -794,7 +810,8 @@ const StyleSheet = memo(function StyleSheet() {
         flex: 1; min-height: 0;
         display: flex; flex-direction: column;
         overflow-y: auto; overscroll-behavior: contain;
-        border-radius: var(--radius-lg); padding: 28px 32px;
+        border-radius: var(--radius-lg); 
+        padding: 8px 32px 16px 32px; 
         scroll-behavior: smooth;
         scrollbar-width: thin;
         scrollbar-color: #EC4899 #FCE7F3;
@@ -1063,7 +1080,6 @@ const StyleSheet = memo(function StyleSheet() {
       }
       @media (max-width: 540px) {
         .vs-sidebar { display: none !important; }
-        .vs-hero-title { font-size: 40px; }
       }
       @media (max-width: 640px) {
         .vs-root { padding: 14px 12px; }
@@ -1236,6 +1252,7 @@ const PersonalizedRecsComponent = () => {
         last.books = [...last.books, ...formatted];
         last.isLoadingMore = false;
         next[next.length - 1] = last;
+        next[next.length - 1].books = unique.map((b, i) => formatBook(b, `more-${Date.now()}-${i}`));
         return next;
       });
     } catch {

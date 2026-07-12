@@ -75,7 +75,7 @@ public class HealthController {
             
             dbHealth.put("status", isValid ? "UP" : "DOWN");
             dbHealth.put("responseTime", responseTime + "ms");
-            dbHealth.put("driver", "H2 Database");
+            dbHealth.put("driver", "PostgreSQL");
             
         } catch (Exception e) {
             dbHealth.put("status", "DOWN");

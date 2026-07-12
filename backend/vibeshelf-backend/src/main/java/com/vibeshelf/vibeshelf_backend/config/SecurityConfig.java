@@ -78,6 +78,7 @@ public class SecurityConfig {
                                 "/api/users/forgot-password", // ✅ ADD THIS
                                 "/api/users/reset-password", // ✅ ADD THIS
                                 "/api/users/verify-test-user",
+                                "/api/health",
 
                                 "/api/recommendations/book",
                                 "/api/books/top-bestsellers",
