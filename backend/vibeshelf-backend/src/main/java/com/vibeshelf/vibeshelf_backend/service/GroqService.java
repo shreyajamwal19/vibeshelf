@@ -151,12 +151,16 @@ public class GroqService {
         String userTurn = buildUserTurn(mood, shown);
         List<BookRecommendation> result = fetchRecommendations(userTurn);
 
-        if (result.isEmpty()) {
-            return fallbackResult(mood);
-        }
+if (result.isEmpty()) {
+    return fallbackResult(mood);
+}
 
-        result.forEach(this::enrichWithCoverAndIsbn);
-        result.forEach(r -> shown.add(r.getTitle().toLowerCase()));
+result.forEach(this::enrichWithCoverAndIsbn);
+
+// Remove books where cover could not be found
+result.removeIf(r -> r.getCoverUrl() == null);
+
+result.forEach(r -> shown.add(r.getTitle().toLowerCase()));
 
         // We only prefetch IF the user hits RETRY. 
         // This stops massive API waste on users who accept the first 10.
@@ -212,11 +216,14 @@ public class GroqService {
         return root.path("response").asText("");
     }
 
-    private RecommendationResult fallbackResult(String mood) {
-        List<BookRecommendation> recs = fallbackRecommender.getRecommendationsByMood(mood, 10);
-        recs.forEach(this::enrichWithCoverAndIsbn);
-        return new RecommendationResult("fallback", recs);
-    }
+  private RecommendationResult fallbackResult(String mood) {
+    List<BookRecommendation> recs = fallbackRecommender.getRecommendationsByMood(mood, 10);
+
+    recs.forEach(this::enrichWithCoverAndIsbn);
+    recs.removeIf(r -> r.getCoverUrl() == null);
+
+    return new RecommendationResult("fallback", recs);
+}
 
     private void enrichWithCoverAndIsbn(BookRecommendation rec) {
         if (rec == null || rec.getTitle() == null || rec.getAuthor() == null) return;
@@ -225,10 +232,21 @@ public class GroqService {
             Book resolved = coverResolverService.resolveAndCacheCover(book);
             rec.setCoverUrl(resolved.getCoverUrl());
             rec.setIsbn(resolved.getIsbn());
-        }, () -> {
-            rec.setCoverUrl("https://placehold.co/128x192/FFE4EF/4A0F2A?text=No+Cover");
-            rec.setIsbn("");
-        });
+       }, () -> {
+    String cover = coverResolverService.resolveCover(
+        rec.getTitle(),
+        rec.getAuthor(),
+        null
+    );
+
+   if (cover != null) {
+    rec.setCoverUrl(cover);
+} else {
+    rec.setCoverUrl(null);
+}
+
+    rec.setIsbn("");
+});
     }
 
     private void asyncPrefetchNext(String sessionId, String mood) {
@@ -241,9 +259,14 @@ public class GroqService {
                 List<BookRecommendation> nextBatch = fetchRecommendations(userTurn);
                 
                 if (!nextBatch.isEmpty()) {
-                    nextBatch.forEach(this::enrichWithCoverAndIsbn);
-                    prefetchedBatches.computeIfAbsent(sessionId, k -> new ConcurrentLinkedDeque<>()).addLast(nextBatch);
-                }
+    nextBatch.forEach(this::enrichWithCoverAndIsbn);
+    nextBatch.removeIf(r -> r.getCoverUrl() == null);
+
+    prefetchedBatches.computeIfAbsent(
+        sessionId,
+        k -> new ConcurrentLinkedDeque<>()
+    ).addLast(nextBatch);
+}
             } catch (Exception e) {
                 log.debug("Background prefetch failed for session {}: {}", sessionId, e.getMessage());
             } finally {

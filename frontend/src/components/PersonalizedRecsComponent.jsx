@@ -1232,14 +1232,16 @@ const PersonalizedRecsComponent = () => {
   const loadMore = useCallback(async () => {
     if (!currentMood || loading) return;
     setLoading(true);
+setConversations((prev) => {
+  const next = prev.slice();
+  const last = { ...next[next.length - 1] };
 
-    setConversations((prev) => {
-      if (prev.length === 0) return prev;
-      const next = prev.slice();
-      next[next.length - 1] = { ...next[next.length - 1], isLoadingMore: true };
-      return next;
-    });
+  last.isLoadingMore = true;
 
+  next[next.length - 1] = last;
+
+  return next;
+});
     try {
       const { books } = await requestRecs(currentMood);
       const unique = dedupeAgainstSeen(books).slice(0, 4);
@@ -1247,14 +1249,16 @@ const PersonalizedRecsComponent = () => {
       const formatted = unique.map((b, i) => formatBook(b, `more-${Date.now()}-${i}`));
 
       setConversations((prev) => {
-        const next = prev.slice();
-        const last = { ...next[next.length - 1] };
-        last.books = [...last.books, ...formatted];
-        last.isLoadingMore = false;
-        next[next.length - 1] = last;
-        next[next.length - 1].books = unique.map((b, i) => formatBook(b, `more-${Date.now()}-${i}`));
-        return next;
-      });
+  const next = prev.slice();
+  const last = { ...next[next.length - 1] };
+
+  last.books = [...last.books, ...formatted];
+  last.isLoadingMore = false;
+
+  next[next.length - 1] = last;
+
+  return next;
+});
     } catch {
       setConversations((prev) => {
         const next = prev.slice();
