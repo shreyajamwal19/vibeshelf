@@ -31,7 +31,7 @@ export const BooksDataProvider = ({ children }) => {
       const abortController = new AbortController();
       const timeoutId = setTimeout(() => abortController.abort(), 3000);
       
-      fetchPromiseRef.current = fetch('/api/books', {
+      fetchPromiseRef.current = fetch(`${import.meta.env.VITE_API_URL}/api/books`, {
         signal: abortController.signal
       })
         .then(response => {
