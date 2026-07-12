@@ -40,7 +40,7 @@ export const BooksDataProvider = ({ children }) => {
           return response.json();
         })
         .then(data => {
-          const booksList = data.data || [];
+          const booksList = data.books || data.data || [];
           console.log('[BooksDataContext] ✅ Loaded from backend:', booksList.length, 'books');
           setBooks(booksList);
           setError(null);
