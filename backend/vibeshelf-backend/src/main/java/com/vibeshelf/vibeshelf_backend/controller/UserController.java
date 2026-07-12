@@ -43,6 +43,16 @@ public class UserController {
             return ResponseEntity.badRequest().body("Verification failed: " + e.getMessage());
         }
     }
+    // 🔄 Resend OTP
+    @PostMapping("/resend-otp")
+public ResponseEntity<?> resendOtp(@RequestParam String email) {
+    try {
+        userService.resendOtp(email);
+        return ResponseEntity.ok("✅ New OTP sent to your email.");
+    } catch (Exception e) {
+        return ResponseEntity.badRequest().body("Error: " + e.getMessage());
+    }
+}
 
     // ✅ Login (only allowed if verified)
     @PostMapping("/login")

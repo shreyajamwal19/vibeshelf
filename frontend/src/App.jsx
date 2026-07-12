@@ -6,7 +6,8 @@ import { ThemeProvider, useTheme } from './contexts/ThemeContext.jsx';
 import { BooksDataProvider, useBooksData } from './contexts/BooksDataContext.jsx';
 import ConfirmDialog from './components/ConfirmDialog';
 import { initializeApp } from './services/AppInitializer.js';
-
+import ForgotPasswordPage from "./pages/ForgotPasswordPage";
+import ResetPasswordPage from "./pages/ResetPasswordPage";
 import PersonalizedRecsComponent from './components/PersonalizedRecsComponent';
 import Explore from './pages/Explore';
 import BooksPage from './pages/BooksPage';
@@ -183,6 +184,8 @@ function App() {
               <Route path="/login" element={<LoginPage />} />
               <Route path="/signup" element={<SignupPage />} />
               <Route path="/verify-otp" element={<VerifyOtpPage />} />
+              <Route path="/forgot-password" element={<ForgotPasswordPage />} />
+              <Route path="/reset-password" element={<ResetPasswordPage />} />
               <Route element={<PrivateRoute />}>
                 {/* Use full layout */}
                 <Route element={!isBookDetail ? <AppLayout /> : <Outlet />}>

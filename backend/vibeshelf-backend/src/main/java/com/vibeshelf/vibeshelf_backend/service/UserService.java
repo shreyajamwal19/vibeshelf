@@ -29,14 +29,44 @@ public class UserService {
 
     public void signup(User user) {
         Optional<User> existingUser = userRepository.findByEmail(user.getEmail());
-        if (existingUser.isPresent()) {
-            throw new RuntimeException("Email already registered!");
-        }
+
+if (existingUser.isPresent()) {
+
+    User existing = existingUser.get();
+
+    // Already verified -> normal error
+    if (existing.isVerified()) {
+        throw new RuntimeException("Email already registered!");
+    }
+
+    // User exists but NOT verified -> resend OTP
+    String otp = String.format("%06d", new Random().nextInt(999999));
+
+    existing.setUsername(user.getUsername());
+    existing.setPassword(passwordEncoder.encode(user.getPassword()));
+    existing.setOtp(otp);
+    existing.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
+
+    userRepository.save(existing);
+
+    emailService.sendEmail(
+            existing.getEmail(),
+            "Your VibeShelf OTP Code",
+            "Hello " + existing.getUsername()
+                    + ",\n\nYour new OTP is: "
+                    + otp
+                    + "\n\nIt expires in 5 minutes."
+    );
+
+    return;
+}
 
         user.setPassword(passwordEncoder.encode(user.getPassword()));
 
-        String otp = String.format("%06d", new Random().nextInt(999999));
-        user.setOtp(otp);
+       String otp = String.format("%06d", new Random().nextInt(999999));
+
+user.setOtp(otp);
+user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
         
         // For testing purposes, auto-verify users with specific test emails
         if (user.getEmail().equals("test@test.com")) {
@@ -55,19 +85,45 @@ public class UserService {
         System.out.println("✅ OTP sent to email: " + otp);
     }
 
-    public boolean verifyOtp(String email, String otp) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (user.getOtp() != null && user.getOtp().equals(otp)) {
-                user.setVerified(true);
-                user.setOtp(null);
-                userRepository.save(user);
-                return true;
-            }
+  public boolean verifyOtp(String email, String otp) {
+
+    Optional<User> userOpt = userRepository.findByEmail(email);
+
+    if (userOpt.isPresent()) {
+
+        User user = userOpt.get();
+
+        // Check OTP exists
+        if (user.getOtp() == null) {
+            return false;
         }
-        return false;
+
+        // Check OTP expiry
+        if (user.getOtpExpiry() != null &&
+                user.getOtpExpiry().isBefore(LocalDateTime.now())) {
+
+            user.setOtp(null);
+            user.setOtpExpiry(null);
+            userRepository.save(user);
+
+            return false;
+        }
+
+        // Check OTP matches
+        if (user.getOtp().equals(otp)) {
+
+            user.setVerified(true);
+            user.setOtp(null);
+            user.setOtpExpiry(null);
+
+            userRepository.save(user);
+
+            return true;
+        }
     }
+
+    return false;
+}
 
     public ResponseEntity<?> login(User loginRequest) {
         Map<String, Object> response = new HashMap<>();
@@ -124,40 +180,92 @@ public class UserService {
         return ResponseEntity.ok(response);
     }
 
-    // 🔄 Send Password Reset OTP
-    public void sendPasswordResetOtp(String email) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isEmpty()) {
-            throw new RuntimeException("User not found with this email.");
-        }
+   // 🔄 Resend OTP
+public void resendOtp(String email) {
 
-        User user = userOpt.get();
-        String otp = String.format("%06d", new Random().nextInt(999999));
-        user.setOtp(otp);
-        userRepository.save(user);
+    Optional<User> userOpt = userRepository.findByEmail(email);
 
-        String subject = "Password Reset - VibeShelf";
-        String body = "Hello " + user.getUsername() + ",\n\n" +
-                     "Your password reset OTP is: " + otp + "\n\n" +
-                     "This OTP will expire in 10 minutes.\n" +
-                     "If you didn't request this, please ignore this email.";
-        emailService.sendEmail(user.getEmail(), subject, body);
+    if (userOpt.isEmpty()) {
+        throw new RuntimeException("User not found.");
     }
+
+    User user = userOpt.get();
+
+    if (user.isVerified()) {
+        throw new RuntimeException("Email already verified. Please login.");
+    }
+
+    String otp = String.format("%06d", new Random().nextInt(999999));
+
+    user.setOtp(otp);
+    user.setOtpExpiry(LocalDateTime.now().plusMinutes(5));
+
+    userRepository.save(user);
+
+    String subject = "Your VibeShelf OTP Code";
+    String body = "Hello " + user.getUsername()
+            + ",\n\nYour new OTP is: "
+            + otp
+            + "\n\nIt expires in 5 minutes.";
+
+    emailService.sendEmail(email, subject, body);
+
+    System.out.println("✅ Resent OTP: " + otp);
+}
+// 🔄 Send Password Reset OTP
+public void sendPasswordResetOtp(String email) {
+
+    Optional<User> userOpt = userRepository.findByEmail(email);
+
+    if (userOpt.isEmpty()) {
+        throw new RuntimeException("User not found with this email.");
+    }
+
+    User user = userOpt.get();
+
+    String otp = String.format("%06d", new Random().nextInt(999999));
+
+    user.setOtp(otp);
+    user.setOtpExpiry(LocalDateTime.now().plusMinutes(10));
+
+    userRepository.save(user);
+
+    String subject = "Password Reset - VibeShelf";
+
+    String body = "Hello " + user.getUsername()
+            + ",\n\nYour password reset OTP is: "
+            + otp
+            + "\n\nThis OTP expires in 10 minutes.";
+
+    emailService.sendEmail(user.getEmail(), subject, body);
+
+    System.out.println("✅ Password reset OTP sent: " + otp);
+}
 
     // 🔄 Reset Password with OTP
-    public boolean resetPassword(String email, String otp, String newPassword) {
-        Optional<User> userOpt = userRepository.findByEmail(email);
-        if (userOpt.isPresent()) {
-            User user = userOpt.get();
-            if (user.getOtp() != null && user.getOtp().equals(otp)) {
-                user.setPassword(passwordEncoder.encode(newPassword));
-                user.setOtp(null); // Clear OTP
-                userRepository.save(user);
-                return true;
-            }
+public boolean resetPassword(String email, String otp, String newPassword) {
+
+    Optional<User> userOpt = userRepository.findByEmail(email);
+
+    if (userOpt.isPresent()) {
+
+        User user = userOpt.get();
+
+        if (user.getOtp() != null &&
+            user.getOtp().equals(otp)) {
+
+            user.setPassword(passwordEncoder.encode(newPassword));
+            user.setOtp(null);
+            user.setOtpExpiry(null);
+
+            userRepository.save(user);
+
+            return true;
         }
-        return false;
     }
+
+    return false;
+}
 
     // 👤 Get User Profile
     public ResponseEntity<?> getUserProfile(String token) {

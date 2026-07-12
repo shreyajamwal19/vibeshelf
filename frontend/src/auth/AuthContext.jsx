@@ -15,7 +15,13 @@ export const AuthProvider = ({ children }) => {
   const navigate = useNavigate();
   const location = useLocation();
 
-  const publicPaths = useMemo(() => ['/login', '/signup', '/verify-otp'], []);
+  const publicPaths = useMemo(() => [
+  '/login',
+  '/signup',
+  '/verify-otp',
+  '/forgot-password',
+  '/reset-password'
+], []);
 
   const logout = useCallback(() => {
     setToken(null);

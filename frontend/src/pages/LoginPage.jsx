@@ -125,14 +125,28 @@ function LoginPage() {
               </button>
             </form>
             
-            <div className="mt-8 text-center">
-              <p className="text-gray-500 dark:text-gray-400 text-sm">
-                New here?{' '}
-                <Link to="/signup" className="text-rose-600 dark:text-rose-400 font-bold hover:text-rose-700 dark:hover:text-rose-300 hover:underline transition-colors decoration-2 underline-offset-4">
-                  Create an account
-                </Link>
-              </p>
-            </div>
+            <div className="mt-8 text-center space-y-3">
+
+<p className="text-sm">
+<a 
+href="/forgot-password"
+className="text-rose-600 dark:text-rose-400 font-bold hover:text-rose-700 dark:hover:text-rose-300 hover:underline transition-colors"
+>
+Forgot Password?
+</a>
+</p>
+
+<p className="text-gray-500 dark:text-gray-400 text-sm">
+New here?{' '}
+<Link 
+to="/signup" 
+className="text-rose-600 dark:text-rose-400 font-bold hover:text-rose-700 dark:hover:text-rose-300 hover:underline transition-colors decoration-2 underline-offset-4"
+>
+Create an account
+</Link>
+</p>
+
+</div>
           </div>
         </div>
         

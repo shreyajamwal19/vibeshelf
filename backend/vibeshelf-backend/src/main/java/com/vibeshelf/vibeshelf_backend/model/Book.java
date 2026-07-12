@@ -23,7 +23,7 @@ public class Book {
     @Column(columnDefinition = "TEXT")
     private String author;
 
-    @Column(columnDefinition = "MEDIUMTEXT")
+    @Column(columnDefinition = "TEXT")
     private String description;
 
     // DB column name is `image`
