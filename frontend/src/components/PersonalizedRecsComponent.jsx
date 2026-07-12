@@ -1172,7 +1172,7 @@ const PersonalizedRecsComponent = () => {
   }, [currentMood]);
 
   const requestRecs = useCallback(async (query, signal) => {
-    const response = await fetch("/api/recommend", {
+    const response = await fetch(`${import.meta.env.VITE_API_URL}/api/recommend`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ mood: query, sessionId: sessionIdRef.current }),

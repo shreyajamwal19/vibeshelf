@@ -43,7 +43,7 @@ export default function AIBookRecommender() {
     setBooks([]);
 
     try {
-      const response = await fetch('/api/recommend', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/recommend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ export default function AIBookRecommender() {
     setError(null);
 
     try {
-      const response = await fetch('/api/recommend', {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/recommend`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
