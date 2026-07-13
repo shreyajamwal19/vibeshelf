@@ -59,6 +59,31 @@ public class SecurityConfig {
     public JwtAuthFilter jwtAuthFilter(UserDetailsService userDetailsService) {
         return new JwtAuthFilter(userDetailsService);
     }
+    @Bean
+public org.springframework.web.cors.CorsConfigurationSource corsConfigurationSource() {
+    org.springframework.web.cors.CorsConfiguration configuration =
+            new org.springframework.web.cors.CorsConfiguration();
+
+    configuration.setAllowedOrigins(java.util.List.of(
+            "http://localhost:5173",
+            "http://localhost:5174",
+            "https://vibeshelf-wine.vercel.app"
+    ));
+
+    configuration.setAllowedMethods(java.util.List.of(
+            "GET", "POST", "PUT", "DELETE", "OPTIONS"
+    ));
+
+    configuration.setAllowedHeaders(java.util.List.of("*"));
+    configuration.setAllowCredentials(true);
+
+    org.springframework.web.cors.UrlBasedCorsConfigurationSource source =
+            new org.springframework.web.cors.UrlBasedCorsConfigurationSource();
+
+    source.registerCorsConfiguration("/**", configuration);
+
+    return source;
+}
 
     @Bean
     public SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {

@@ -1,16 +1,14 @@
 import axios from 'axios';
+import API_BASE_URL from '../config';
 
-// Central API client for backend calls.
-// Backend is running on Spring Boot at port 8080
-const BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8080';
+console.log("API_BASE_URL =", API_BASE_URL);
 
 const client = axios.create({
-  baseURL: BASE_URL,
-  withCredentials: true,
+  baseURL: API_BASE_URL,
+  timeout: 10000,
   headers: {
-    Accept: 'application/json',
-    'Content-Type': 'application/json',
-  },
+    'Content-Type': 'application/json'
+  }
 });
 
 /**
