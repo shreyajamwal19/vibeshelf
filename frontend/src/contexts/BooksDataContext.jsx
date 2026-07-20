@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { BOOK_LIBRARY } from '../data/BookLibrary.js';
+import { fetchBooks } from '../services/api'; // Import fetchBooks from api.js
 
 /**
  * BooksDataContext - SINGLE SOURCE OF TRUTH for books dataset
@@ -28,17 +29,8 @@ export const BooksDataProvider = ({ children }) => {
     fetchInitiatedRef.current = true;
 
     if (!fetchPromiseRef.current) {
-      const abortController = new AbortController();
-      const timeoutId = setTimeout(() => abortController.abort(), 3000);
-      
-      fetchPromiseRef.current = fetch(`${import.meta.env.VITE_API_URL}/api/books`, {
-        signal: abortController.signal
-      })
-        .then(response => {
-          clearTimeout(timeoutId);
-          if (!response.ok) throw new Error(`HTTP ${response.status}`);
-          return response.json();
-        })
+      // Use the fetchBooks function from api.js to leverage retry and longer timeout
+      fetchPromiseRef.current = fetchBooks()
         .then(data => {
           const booksList = data.books || data.data || [];
           console.log('[BooksDataContext] ✅ Loaded from backend:', booksList.length, 'books');
@@ -48,7 +40,6 @@ export const BooksDataProvider = ({ children }) => {
           return booksList;
         })
         .catch(err => {
-          clearTimeout(timeoutId);
           console.log('[BooksDataContext] ⚠️ Backend unavailable, using local BOOK_LIBRARY');
           console.log('[BooksDataContext] Error:', err.message);
           setBooks(BOOK_LIBRARY || []);
